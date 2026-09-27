@@ -1,0 +1,16 @@
+{
+  "extends": "./packages/config-tsconfig/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "files": [],
+  "references": [
+    { "path": "packages/config-depcruise" },
+    { "path": "packages/gates" },
+    { "path": "packages/ui" },
+    { "path": "packages/ai" },
+    { "path": "packages/voice" },
+    { "path": "packages/env" },
+    { "path": "packages/create-q9stack" }
+  ]
+}

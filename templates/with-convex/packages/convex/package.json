@@ -1,0 +1,45 @@
+{
+  "name": "@__APP_SLUG__/convex",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/with-convex/packages/convex#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/with-convex/packages/convex"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm -w run convex:dev",
+    "dev:prepare": "tsdown --no-clean",
+    "dev:watch": "tsdown --watch --no-clean",
+    "dev:convex": "pnpm -w run convex:dev",
+    "deploy": "pnpm -w run convex:deploy",
+    "codegen": "pnpm -w run convex:codegen",
+    "typecheck": "pnpm -w run convex:codegen && pnpm -w run typecheck:convex",
+    "test": "pnpm -w run convex:codegen && pnpm -w run test:convex",
+    "build": "pnpm -w run convex:codegen && tsdown"
+  },
+  "dependencies": {
+    "convex": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Dedicated tsconfig for the convex package's tsdown dts build. It lives at
+  // the repo root because rolldown-plugin-dts derives the tsgo --rootDir from
+  // this file's directory: the dts graph reaches seeds/ and packages/core/src
+  // through convex/seed.ts, and sources outside that root would be emitted in
+  // place next to their sources instead of into the plugin's temporary outDir.
+  "extends": "@q9labsai/config-tsconfig/tsconfig.library.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["packages/convex/src", "convex"],
+  "exclude": ["packages/convex/dist"]
+}

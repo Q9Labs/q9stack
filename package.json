@@ -1,0 +1,55 @@
+{
+  "name": "q9stack",
+  "version": "0.0.0",
+  "private": true,
+  "homepage": "https://github.com/Q9Labs/q9stack#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack"
+  },
+  "type": "module",
+  "scripts": {
+    "pnpm:devPreinstall": "node scripts/ensure-q9gate-bin.mjs",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test && pnpm run test:bootstrap",
+    "test:bootstrap": "node --test scripts/ensure-q9gate-bin.test.mjs",
+    "lint": "oxlint --type-aware --disable-nested-config .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "gate": "pnpm --filter @q9labsai/cli build && pnpm tracker:check && q9gate run",
+    "gate:full": "pnpm --filter @q9labsai/cli build && pnpm tracker:check && q9gate run --full",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "tracker:check": "q9 tracker check",
+    "registry:build": "npx -y shadcn@4.21.0 build --cwd registry"
+  },
+  "devDependencies": {
+    "@changesets/cli": "catalog:",
+    "@q9labsai/cli": "workspace:*",
+    "@q9labsai/config-depcruise": "workspace:*",
+    "@q9labsai/config-oxlint": "workspace:*",
+    "@q9labsai/config-semgrep": "workspace:*",
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@q9labsai/gates": "workspace:*",
+    "@types/node": "catalog:",
+    "cspell": "catalog:",
+    "dependency-cruiser": "catalog:",
+    "fallow": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "syncpack": "catalog:",
+    "tsdown": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.1.3"
+}

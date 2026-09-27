@@ -1,0 +1,59 @@
+{
+  "name": "@__APP_SLUG__/api",
+  "version": "0.1.0",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/without-convex/apps/api#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/without-convex/apps/api"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "Dockerfile"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
+    "dev:server": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@__APP_SLUG__/contracts": "workspace:*",
+    "@__APP_SLUG__/core": "workspace:*",
+    "@__APP_SLUG__/database": "workspace:*",
+    "@__APP_SLUG__/env": "workspace:*",
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "better-auth": "catalog:",
+    "effect": "catalog:",
+    "pg": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@q9labsai/config-tsconfig": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

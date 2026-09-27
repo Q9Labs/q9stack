@@ -1,0 +1,26 @@
+export { createAuthClient } from "./adapter.js";
+export type { AuthClient, AuthAccountSummary } from "./client.js";
+export {
+  AUTH_ERROR_CODES,
+  AUTH_ROLES,
+  type AuthAccount,
+  type AuthError,
+  type AuthErrorCode,
+  type AuthFailure,
+  type AuthResult,
+  type AuthRole,
+  type AuthSession,
+  type AuthSuccess,
+  type DevAccount,
+  type DevAccountSwitchInput,
+  type PasswordResetInput,
+  type PasswordResetResult,
+  type ResetPasswordInput,
+  type ResetPasswordResult,
+  type SessionState,
+  type SignInInput,
+  type SignOutResult,
+  type SignUpInput,
+  type UpdateProfileInput,
+  type UpdateProfileResult,
+} from "./types.js";

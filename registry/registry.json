@@ -1,0 +1,28 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "q9stack",
+  "homepage": "https://github.com/Q9Labs/q9stack",
+  "items": [
+    {
+      "name": "changelog",
+      "type": "registry:block",
+      "title": "Changelog",
+      "description": "A dialog that shows release notes bundled from changelog.json, with a hook that tracks the last seen version.",
+      "registryDependencies": ["dialog"],
+      "files": [
+        {
+          "path": "changelog/changelog.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "changelog/use-changelog.ts",
+          "type": "registry:hook"
+        },
+        {
+          "path": "changelog/changelog-dialog.tsx",
+          "type": "registry:component"
+        }
+      ]
+    }
+  ]
+}

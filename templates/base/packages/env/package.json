@@ -1,0 +1,43 @@
+{
+  "name": "@__APP_SLUG__/env",
+  "version": "0.1.0",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/base/packages/env#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/base/packages/env"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev:prepare": "tsdown --no-clean",
+    "dev:watch": "tsdown --watch --no-clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@q9labsai/env": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

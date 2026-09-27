@@ -1,0 +1,6 @@
+msgid ""
+msgstr ""
+"Language: ar\n"
+
+msgid "label"
+msgstr ""

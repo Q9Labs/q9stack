@@ -1,0 +1,71 @@
+variable "CLOUDFLARE_API_TOKEN" {
+  description = "Cloudflare API token supplied by the deployment environment."
+  type        = string
+  sensitive   = true
+}
+
+variable "CLOUDFLARE_ACCOUNT_ID" {
+  description = "Cloudflare account ID supplied by the deployment environment."
+  type        = string
+}
+
+variable "CLOUDFLARE_ZONE_ID" {
+  description = "Optional Cloudflare zone ID for custom domains and DNS records."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "CUSTOM_DOMAIN" {
+  description = "Optional custom hostname for the Worker."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "APP_ENV" {
+  description = "Deployment environment."
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = var.APP_ENV == "dev"
+    error_message = "The dev stack must use APP_ENV=dev."
+  }
+}
+
+variable "APP_URL" {
+  description = "Canonical application URL."
+  type        = string
+}
+
+variable "LOG_LEVEL" {
+  description = "Application log level."
+  type        = string
+  default     = "info"
+}
+
+variable "OPENROUTER_API_KEY" {
+  description = "Required server-only OpenRouter API key."
+  type        = string
+  sensitive   = true
+}
+
+variable "SENTRY_DSN" {
+  description = "Optional public Sentry DSN."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "DNS_RECORDS" {
+  description = "Optional Cloudflare DNS records keyed by a stable logical name."
+  type = map(object({
+    name    = string
+    type    = string
+    content = string
+    ttl     = optional(number, 1)
+    proxied = optional(bool, false)
+  }))
+  default = {}
+}

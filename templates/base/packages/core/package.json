@@ -1,0 +1,51 @@
+{
+  "name": "@__APP_SLUG__/core",
+  "version": "0.1.0",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/base/packages/core#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/base/packages/core"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ids": {
+      "types": "./dist/ids.d.ts",
+      "import": "./dist/ids.js"
+    },
+    "./sample": {
+      "types": "./dist/sample/index.d.ts",
+      "import": "./dist/sample/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev:prepare": "tsdown --no-clean",
+    "dev:watch": "tsdown --watch --no-clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "catalog:",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

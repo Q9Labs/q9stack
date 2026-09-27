@@ -1,0 +1,62 @@
+{
+  "name": "@q9labsai/voice",
+  "version": "0.1.0",
+  "description": "Provider-neutral browser voice call clients for q9labs applications",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/voice#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/voice"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ultravox": {
+      "types": "./dist/ultravox.d.ts",
+      "import": "./dist/ultravox.js"
+    },
+    "./openai-realtime": {
+      "types": "./dist/openai-realtime.d.ts",
+      "import": "./dist/openai-realtime.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "catalog:",
+    "ultravox-client": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/react": "catalog:",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

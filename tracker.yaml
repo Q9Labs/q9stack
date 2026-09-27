@@ -1,0 +1,1270 @@
+schema_version: 7
+principle: >-
+  Track meaningful product outcomes and concrete remaining work, not completed setup or CRUD
+  inventory. Audited against the current local working tree on 2026-09-08. Working means only the
+  explicitly stated source scope is implemented; it is not live-release certification. Planned means
+  a specific implementation gap was found; unknown names the exact proof still unavailable. P0
+  first, P1 next, P2 later. Retire basic completed items; consolidate related outcomes without
+  discarding unresolved scope.
+sizing: >-
+  Estimate remaining work, not elapsed time. S: one focused change. M: several connected changes. L:
+  substantial cross-cutting work; split before starting. Unknown: investigate before sizing. Working
+  entries have no remaining work to size. Waiting does not increase size. Revisit estimates when the
+  work is inspected.
+outcomes:
+  - id: toolkit.scaffold
+    title: Developers scaffold a Convex or Postgres project from thin overlays
+    area: toolkit
+    state: working
+    summary: >-
+      The scaffold composes base/backend overlays, rewrites tokens/dependencies and checks target
+      output. This is the generator source contract, not proof that every fresh app starts against
+      configured infrastructure.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/core/plan.ts
+      - packages/create-q9stack/src/core/overlay.ts
+      - packages/create-q9stack/src/adapters/scaffold.ts
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The scaffold composes base/backend overlays, rewrites tokens/dependencies and checks
+          target output. This is the generator source contract, not proof that every fresh app
+          starts against configured infrastructure.
+        artifact: packages/create-q9stack/src/core/plan.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: toolkit.gates
+    title: A repository can plan quality lanes and receive structured gate results
+    area: toolkit
+    state: working
+    summary: >-
+      The CLI, orchestrator and structured reports implement lane planning/execution. The lane
+      registry covers the current JavaScript/tooling lanes and a generic custom seam; it does not
+      imply native-language, accessibility or full runtime performance coverage.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/gates/src/cli.ts
+      - packages/gates/src/core/report.ts
+      - packages/gates/src/orchestrator
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The CLI, orchestrator and structured reports implement lane planning/execution. The lane
+          registry covers the current JavaScript/tooling lanes and a generic custom seam; it does
+          not imply native-language, accessibility or full runtime performance coverage.
+        artifact: packages/gates/src/cli.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: release.fresh_variants
+    title: Fresh Convex and Postgres projects complete their authenticated starter flow
+    area: release
+    state: unknown
+    summary: >-
+      Scaffold, environment instructions, dev dependency preparation and browser configuration
+      exist. A current clean Convex/Postgres authenticated workflow and required full gates were not
+      executed by this source audit.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack
+      - packages/gates
+    priority: P1
+    size: Unknown
+    size_reason: Inspect the stated scope and existing proof before estimating remaining work.
+    uncertainty: >-
+      The remote test host is unavailable; local generator CLI testing could not load the declared
+      cac dependency. Neither is proof that a generated application is broken.
+    remaining:
+      - >-
+        Generate both variants from the exact audited working tree, install declared dependencies
+        and follow the documented environment/backend setup.
+      - >-
+        Exercise sign-in, seeded account switching, authenticated routes, development hot reload and
+        required gates; record any concrete failure with revision and fixture details.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Scaffold, environment instructions, dev dependency preparation and browser configuration
+          exist. A current clean Convex/Postgres authenticated workflow and required full gates were
+          not executed by this source audit.
+        artifact: packages/create-q9stack
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: release.published_packages
+    title: Published packages match the tested source and usable package exports
+    area: release
+    state: unknown
+    summary: >-
+      Workspace package exports and the changeset release command exist, but they do not identify
+      the current registry artifacts or prove downstream consumption. No package was published or
+      registry revision certified by this audit.
+    theory: theory.md#scope-boundaries
+    code:
+      - package.json
+      - packages/create-q9stack/package.json
+      - packages/gates/package.json
+      - packages/ui/package.json
+    priority: P0
+    size: Unknown
+    size_reason: Inspect the stated scope and existing proof before estimating remaining work.
+    uncertainty: >-
+      Current published archives were not fetched/installed in independent consumers; source state
+      must not be presented as registry state.
+    remaining:
+      - >-
+        Resolve the intended published versions, compare archive contents/build identity with the
+        qualified source and install them outside the workspace.
+      - >-
+        Exercise scaffold CLI, q9gate and UI public imports from those archives; only then record
+        the consumer/version qualification.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Workspace package exports and the changeset release command exist, but they do not
+          identify the current registry artifacts or prove downstream consumption. No package was
+          published or registry revision certified by this audit.
+        artifact: package.json
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: toolkit.harvest
+    title: Reusable work across the products is ranked by sharing mode
+    area: toolkit
+    state: in_progress
+    summary: >-
+      Read-only harvests are being consolidated into a ranked list of reusable work. Candidates
+      that already appear in multiple projects are prioritized. Deferred platform concerns should
+      start as recipes with a reference implementation and a conformance check; packages follow
+      only when the sharing model supports central upgrades.
+    theory: theory.md#adoption-order
+    code: []
+    priority: P0
+    size: M
+    size_reason: Verify and merge existing project reports into one ranked list.
+    remaining:
+      - Choose the first two or three recipes from the ranked list with maintainers.
+  - id: toolkit.agent_cli
+    title: Agents run the tracker, dev server and changelog through one q9 command
+    area: toolkit
+    state: planned
+    summary: >-
+      Projects maintain separate tracker, development-server, and changelog tooling, with duplicated
+      scripts and inconsistent behavior. @q9labsai/cli will provide a single q9 command invoked
+      through pnpm scripts.
+    theory: theory.md#agent-cli
+    code:
+      - packages/cli/src/tracker.ts
+      - packages/cli/src/cli.ts
+    priority: P0
+    size: L
+    size_reason: One new package with three subcommand groups, a shadcn registry item and scaffold wiring.
+    remaining:
+      - >-
+        Publish @q9labsai/cli with q9 tracker check|list|show, q9 dev
+        start|status|logs|stop|reset and q9 changelog add|release|check|export, each with --json.
+      - >-
+        Delete the tracker renderer, server and generated tracker-human views, and run q9 tracker
+        check in the q9stack gate.
+      - >-
+        Ship the changelog dialog as a shadcn registry item that reads the exported changelog JSON
+        and uses only semantic tokens and logical classes.
+      - Replace the local tracker, dev-log and changelog scripts in each product during fleet adoption.
+  - id: toolkit.i18n_gate
+    title: The gate blocks physical-direction classes and incomplete translation catalogs
+    area: toolkit
+    state: planned
+    summary: >-
+      The RTL Semgrep rule is copied into each generated .semgrep/project.yml instead of shipping
+      in @q9labsai/config-semgrep, and nothing checks catalogs. A project-owned catalog check
+      demonstrates expected parity, ICU placeholders, Arabic plural forms and untranslated strings.
+    theory: theory.md#2-locked-decisions
+    code:
+      - packages/config-semgrep
+      - packages/gates/src/lanes
+    priority: P0
+    size: M
+    size_reason: One rule move plus one ported lane with tests.
+    remaining:
+      - Move q9.ui.no-physical-direction-classes into @q9labsai/config-semgrep.
+      - Port an existing catalog check into q9gate as an i18n lane with tests.
+  - id: toolkit.gate_adoption_gaps
+    title: q9gate supports Worker, Expo, Node 24
+    area: toolkit
+    state: in_progress
+    summary: >-
+      q9gate classifies and parses Wrangler JSON, JSONC and TOML, @q9labsai/env exposes Expo client
+      keys, and every public package requires Node 24. The depcruise lane now verifies TypeScript
+      modules; generated workspaces still need dependency-cruiser's TypeScript 6 package extension.
+    theory: theory.md#adoption-order
+    code:
+      - packages/gates/src/core/classify.ts
+      - packages/gates/src/lanes/env-contract.ts
+      - packages/gates/src/lanes/depcruise.ts
+      - packages/gates/package.json
+      - packages/gates/test
+      - packages/env/src
+      - packages/env/test
+      - packages/env/README.md
+      - packages/config-depcruise
+      - pnpm-workspace.yaml
+      - cspell.config.yaml
+    priority: P0
+    size: S
+    size_reason: One package-manager parser compatibility setting in generated workspaces.
+    remaining:
+      - >-
+        Add the dependency-cruiser TypeScript 6 package extension to generated workspaces; the
+        template lane owns that change.
+    evidence:
+      - kind: check
+        scope: Wrangler, Expo, Node 24 and depcruise adoption checks
+        detail: >-
+          Focused Vitest suites passed (42 tests); the linked Convex scaffold's depcruise lane
+          passed with 118 modules including 74 .ts/.tsx modules; all 11 public package manifests
+          declare Node >=24. On agents-macmini, pnpm build, pnpm typecheck, and q9gate full passed.
+          pnpm test hit the unrelated 5-second timeout in packages/cli/test/cli.test.ts:158; the
+          isolated overlapping-start test passed.
+        artifact: packages/gates/test/lanes/special-lanes.test.ts
+        revision: 02f9f75
+        environment: agents-macmini, macOS arm64, Node 26.5.0, pnpm 11.1.3
+        date: "2026-09-27"
+        result: pass
+  - id: toolkit.recipes
+    title: Products follow shared recipes that carry a conformance check
+    area: toolkit
+    state: planned
+    summary: >-
+      No recipes directory or recipe format exists yet. The first recipes come from the ranked
+      harvest list.
+    theory: theory.md#sharing-model
+    code: []
+    priority: P0
+    size: M
+    size_reason: A format definition plus two or three recipes, each with a working check.
+    remaining:
+      - >-
+        Add recipes/ with a README that defines the format: problem, reference implementation,
+        stack notes and conformance check.
+      - Write the first two or three recipes chosen from the harvest, each with a working check.
+      - Link each adopted recipe from the product's AGENTS.md and prove its check passes there.
+  - id: release.fleet_adoption
+    title: Every product runs q9gate and receives grouped @q9labsai upgrades
+    area: release
+    state: planned
+    summary: >-
+      Adoption is not yet consistent across existing projects, and package updates are not yet
+      grouped automatically.
+    theory: theory.md#8-fleet-upgrades
+    code: []
+    priority: P0
+    size: L
+    size_reason: Several independent adoptions and a shared update workflow.
+    remaining:
+      - >-
+        Add .github/dependabot.yml grouping @q9labsai/* updates for adopters and the base template.
+      - Adopt q9gate in remaining projects, one repository per delivery, after the gate adoption gaps close.
+      - Standardize lint and format configuration during each project's q9gate adoption.
+      - >-
+        Ensure projects use Node 24 before installing packages that require it, and route their
+        default gate through q9gate.
+      - Upgrade published packages to the next stable release as scheduled.
+  - id: release.open_source
+    title: q9stack is public at Q9Labs/q9stack and accepts issues and pull requests
+    area: release
+    state: planned
+    summary: >-
+      Prepare a clean initial public commit at Q9Labs/q9stack. Tracked scratchpad material and
+      private planning documents are excluded; the owners of protected generated tracker views
+      must reconcile their private project details before publication.
+    theory: theory.md#sharing-model
+    code: []
+    priority: P1
+    size: M
+    size_reason: History reset, tree audit, repository move and contribution files.
+    remaining:
+      - Rename the private repository to q9stack-archive and keep it as the history archive.
+      - >-
+        Create Q9Labs/q9stack from a cleaned tree with one initial commit, after auditing that tree
+        for secrets, personal paths and private product details.
+      - Remove tracked scratchpad material and private planning documents from the public tree.
+      - >-
+        Point every package's repository metadata at Q9Labs/q9stack, and add contribution guidance
+        plus issue templates for recipe proposals and bugs.
+    evidence:
+      - kind: source_review
+        scope: Git index and documentation review
+        detail: >-
+          A source audit found tracked scratchpad material, private planning documents, and protected
+          generated tracker views that require owner review.
+        artifact: tracker.yaml
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-26"
+        result: pass
+  - id: foundation.starter_docs
+    title: Generated projects ship theory.md, tracker.yaml and design.md
+    area: foundation
+    state: planned
+    summary: >-
+      The base template ships product.yaml, GLOSSARY.md and docs/, but not the theory, tracker
+      and design documents the products already use.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/product.yaml
+      - templates/base/AGENTS.md
+      - templates/base/README.md
+    priority: P1
+    size: M
+    size_reason: Template documents plus generated gate wiring for the tracker check.
+    remaining:
+      - >-
+        Replace product.yaml with seed theory.md, tracker.yaml and design.md, rename GLOSSARY.md to
+        glossary.md, and run q9 tracker check in the generated gate.
+      - Point the generated AGENTS.md, CLAUDE.md and README at the three documents.
+  - id: roadmap.b01
+    title: "B01: Add explicit frontend mock mode"
+    area: foundation
+    state: planned
+    summary: >-
+      Generated packages still expose dev/dev:server but no explicit root/web mock commands. Preview
+      mock-auth exists; it is not a full deterministic in-process product adapter.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/package.json
+      - templates/base/apps/web/package.json
+      - templates/base/apps/web/src/auth/mock-auth.ts
+    priority: P1
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Add explicit root and web mock commands with a typed in-process adapter and deterministic
+        authentication/data.
+      - >-
+        Keep mutations in memory, reset on reload/restart, and never fall back to mock mode on
+        real-service failure.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Generated packages still expose dev/dev:server but no explicit root/web mock commands.
+          Preview mock-auth exists; it is not a full deterministic in-process product adapter.
+        artifact: templates/base/package.json
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b02
+    title: "B02: Make the first development run work"
+    area: foundation
+    state: planned
+    summary: >-
+      Generated READMEs now explicitly require copying/configuring .env and document backend
+      prerequisites; dev tasks also prepare workspace dependencies. The CLI next-steps output still
+      jumps directly to pnpm dev without these prerequisites. Do not keep asserting that environment
+      documentation is absent.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/cli.ts
+      - templates/base/README.md
+      - templates/with-convex/README.md
+      - templates/without-convex/README.md
+      - templates/base/turbo.json
+    priority: P1
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Align CLI next steps with the selected variant's documented environment/backend setup; never
+        fabricate credentials or silently choose mock mode.
+      - >-
+        Check a fresh user can follow one coherent setup path for each variant, with missing
+        configuration reported before a misleading development start.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Generated READMEs now explicitly require copying/configuring .env and document backend
+          prerequisites; dev tasks also prepare workspace dependencies. The CLI next-steps output
+          still jumps directly to pnpm dev without these prerequisites. Do not keep asserting that
+          environment documentation is absent.
+        artifact: packages/create-q9stack/src/cli.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b03
+    title: "B03: Fix TanStack Start development SSR"
+    area: foundation
+    state: unknown
+    summary: >-
+      Both Vite configurations use TanStack Start, React and Cloudflare SSR plugins; generated dev
+      tasks now prepare and watch dependencies. The old invalid-hook/HTTP-500 report has not been
+      reproduced on this working tree and must not be presented as a current confirmed defect.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/apps/web/vite.config.ts
+      - templates/without-convex/apps/web/vite.config.ts
+      - templates/with-convex/turbo.json
+    priority: P1
+    size: Unknown
+    size_reason: The specific current runtime/help result must be observed before estimating a fix.
+    remaining:
+      - >-
+        Run development mode from fresh configured Convex and Postgres scaffolds, request the
+        authenticated/public routes and exercise a hot update.
+      - >-
+        Only reopen an SSR defect if the current run reproduces it; otherwise retire B03 with the
+        revision and command result.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Both Vite configurations use TanStack Start, React and Cloudflare SSR plugins; generated
+          dev tasks now prepare and watch dependencies. The old invalid-hook/HTTP-500 report has not
+          been reproduced on this working tree and must not be presented as a current confirmed
+          defect.
+        artifact: templates/base/apps/web/vite.config.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+    uncertainty: Current development SSR has not been reproduced on configured fresh variants.
+  - id: roadmap.b04
+    title: "B04: Make browser tests self-preparing"
+    area: foundation
+    state: planned
+    summary: >-
+      Playwright has webServer startup, but the inherited configuration only starts the web command;
+      it does not provision the selected backend, establish test environment values or seed an
+      authenticated fixture. Dependency dev:prepare wiring is already present and should not be
+      rebuilt.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/apps/web/playwright.config.ts
+      - templates/base/apps/web/package.json
+      - templates/base/turbo.json
+    priority: P2
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Make browser tests prepare/verify the selected backend and authorized fixture data, handle
+        environment configuration and clean up task-owned processes/data.
+      - >-
+        Verify execution from a clean scaffold without a manually prepared running stack for both
+        variants.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Playwright has webServer startup, but the inherited configuration only starts the web
+          command; it does not provision the selected backend, establish test environment values or
+          seed an authenticated fixture. Dependency dev:prepare wiring is already present and should
+          not be rebuilt.
+        artifact: templates/base/apps/web/playwright.config.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b05
+    title: "B05: Correct scaffold CLI help"
+    area: foundation
+    state: unknown
+    summary: >-
+      The CLI registers --no-install/--no-git without explicit defaults and converts the parser's
+      positive/negative fields into scaffold options. The reported misleading rendered defaults
+      require checking actual CAC help output; source option declarations alone do not settle them.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/cli.ts
+      - packages/create-q9stack/test/cli.test.ts
+    priority: P1
+    size: Unknown
+    size_reason: The specific current runtime/help result must be observed before estimating a fix.
+    remaining:
+      - >-
+        Run source/current-built --help and compare rendered negative-flag defaults with no-flag and
+        explicit-flag behavior.
+      - Fix only a reproduced mismatch; retire this small item once help and behavior agree.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The CLI registers --no-install/--no-git without explicit defaults and converts the
+          parser's positive/negative fields into scaffold options. The reported misleading rendered
+          defaults require checking actual CAC help output; source option declarations alone do not
+          settle them.
+        artifact: packages/create-q9stack/src/cli.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+    uncertainty: >-
+      A focused CLI test could not load cac from the current local installation; no actual
+      help-output result is claimed.
+  - id: roadmap.b06
+    title: "B06: Make development processes agent-observable"
+    area: foundation
+    state: planned
+    summary: >-
+      Turbo dev:prepare/dev:watch now makes dependency startup observable as tasks, but generated
+      dev commands still have no persistent mirrored log convention. Task preparation is not the
+      same as agent-readable process output.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/package.json
+      - templates/base/apps/web/package.json
+      - templates/base/turbo.json
+      - templates/without-convex/apps/api/package.json
+    priority: P1
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Connect generated long-running processes to bounded, gitignored per-process logs while
+        retaining terminal output.
+      - >-
+        Document inspection and cleanup and prove logs remain useful after a process exits without
+        exposing secrets.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Turbo dev:prepare/dev:watch now makes dependency startup observable as tasks, but
+          generated dev commands still have no persistent mirrored log convention. Task preparation
+          is not the same as agent-readable process output.
+        artifact: templates/base/package.json
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b07
+    title: "B07: PostHog integration"
+    area: adapters
+    state: planned
+    summary: >-
+      No PostHog overlay or app analytics/session-replay adapter is present in the template/package
+      inventory. Existing Sentry environment fields are not this capability.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/core/plan.ts
+      - templates/base/packages/env
+      - templates/base/apps/web/src
+    priority: P2
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Implement an explicitly enabled optional PostHog overlay for analytics/replay, using the
+        shared feature-flag contract where applicable.
+      - >-
+        Validate disabled/default behavior, consent/configuration boundaries and redacted fixtures;
+        do not turn failed telemetry into application failure.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No PostHog overlay or app analytics/session-replay adapter is present in the
+          template/package inventory. Existing Sentry environment fields are not this capability.
+        artifact: packages/create-q9stack/src/core/plan.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b08
+    title: "B08: Observability foundation and Axiom integration"
+    area: contracts
+    state: planned
+    summary: >-
+      Environment/Sentry hooks and Effect instrumentation are useful foundations, but there is no
+      shared cross-variant event/redaction/correlation contract plus optional Axiom overlay in the
+      inspected packages/templates.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/env/src
+      - templates/base/packages/env
+      - templates/without-convex/apps/api/src
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Define shared structured event/error/correlation/redaction interfaces and conformance
+        fixtures.
+      - >-
+        Add an optional server-bound Axiom adapter; keep alerting, retention and incident policy
+        application-owned.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Environment/Sentry hooks and Effect instrumentation are useful foundations, but there is
+          no shared cross-variant event/redaction/correlation contract plus optional Axiom overlay
+          in the inspected packages/templates.
+        artifact: packages/env/src
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b09
+    title: "B09: Mobile variants"
+    area: adapters
+    state: planned
+    summary: >-
+      CLI and plan select only Convex or Postgres web variants; native/Expo mobile variants are
+      still absent. Retain the approved mobile phase scope below rather than treating existing web
+      auth/UI packages as mobile support.
+    theory: theory.md#mobile-variant-contract
+    code:
+      - packages/create-q9stack/src/cli.ts
+      - packages/create-q9stack/src/core/plan.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Split the approved native and Expo variants into finite backend/authentication starter
+        outcomes before implementation.
+      - >-
+        Define the mobile contract, starter flow, authentication fixture, and toolchain support
+        policy.
+      - Add common configuration, environment, token generation, and q9gate integration seams.
+      - Build the Expo overlay without importing the web UI package.
+      - Build the Swift/iOS overlay without adding a shared native runtime.
+      - Build the Kotlin/Android overlay without adding a shared native runtime.
+      - Integrate and test Convex and Postgres backend wiring across all applications.
+      - Integrate the overlays into the scaffold and publish complete development documentation.
+      - Pass the release acceptance matrix.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          CLI and plan select only Convex or Postgres web variants; native/Expo mobile variants are
+          still absent. Retain the approved mobile phase scope below rather than treating existing
+          web auth/UI packages as mobile support.
+        artifact: packages/create-q9stack/src/cli.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b10
+    title: "B10: Polyglot gates"
+    area: adapters
+    state: planned
+    summary: >-
+      q9gate has reusable command/custom lanes, but no built-in Go, Elixir, Swift or Kotlin lane
+      presets were found. Generic process execution is not a complete native-tool integration and
+      result contract.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/gates/src/lanes/index.ts
+      - packages/gates/src/lanes/custom.ts
+      - packages/gates/src/lanes/command.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Add language-native format/lint/test/security/build orchestration and normalize results
+        without replacing each ecosystem's tools.
+      - >-
+        Add failing/passing fixture projects for each supported language and prove lane selection
+        and report parity.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          q9gate has reusable command/custom lanes, but no built-in Go, Elixir, Swift or Kotlin lane
+          presets were found. Generic process execution is not a complete native-tool integration
+          and result contract.
+        artifact: packages/gates/src/lanes/index.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b11
+    title: "B11: Push notifications"
+    area: contracts
+    state: planned
+    summary: >-
+      No shared device-token registration, push delivery or notification-preference package/overlay
+      is present.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/core/plan.ts
+      - templates
+      - packages
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement token registration/preferences, idempotent send results and invalid-token cleanup
+        behind replaceable delivery adapters.
+      - Add provider-free fixtures and explicit application-owned credentials/notification policy.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No shared device-token registration, push delivery or notification-preference
+          package/overlay is present.
+        artifact: packages/create-q9stack/src/core/plan.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b12
+    title: "B12: Extended Better Auth"
+    area: contracts
+    state: planned
+    summary: >-
+      The templates configure basic email/password Better Auth; Postgres adds a role field and
+      password-reset delivery while Convex enables its adapter plugin. This is not the retained
+      social/2FA/Organization/cross-domain/mobile capability matrix.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/auth.ts
+      - templates/with-convex/convex/auth.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Define and implement the supported extended-auth capability matrix with explicit
+        parity/unsupported cases across backend and mobile variants.
+      - Add positive/denial/session-recovery fixtures; custom JWT remains out of scope.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The templates configure basic email/password Better Auth; Postgres adds a role field and
+          password-reset delivery while Convex enables its adapter plugin. This is not the retained
+          social/2FA/Organization/cross-domain/mobile capability matrix.
+        artifact: templates/without-convex/apps/api/src/auth.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b13
+    title: "B13: File storage"
+    area: contracts
+    state: planned
+    summary: >-
+      Infrastructure templates are not a shared typed object-storage upload/access/retention
+      contract; no such runtime adapter package was found.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/base/infra
+      - packages/create-q9stack/src/core/plan.ts
+      - packages
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement typed upload/download/metadata/access/deletion/quarantine seams and replaceable
+        storage adapters.
+      - >-
+        Test authorization, retention and cleanup boundaries; keep processing/recorders and provider
+        policy application-owned.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Infrastructure templates are not a shared typed object-storage upload/access/retention
+          contract; no such runtime adapter package was found.
+        artifact: templates/base/infra
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b14
+    title: "B14: Webhooks"
+    area: contracts
+    state: planned
+    summary: >-
+      The Postgres password-reset webhook is a specific outbound delivery seam, not a general
+      inbound/outbound signed-webhook contract. No reusable timestamp/replay/retry/delivery-record
+      foundation is present.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/password-reset-delivery.ts
+      - packages
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement generic signature/timestamp verification, duplicate/idempotency handling and
+        replay fixtures.
+      - >-
+        Add signed outbound delivery/retry records without owning application payloads or business
+        effects.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The Postgres password-reset webhook is a specific outbound delivery seam, not a general
+          inbound/outbound signed-webhook contract. No reusable
+          timestamp/replay/retry/delivery-record foundation is present.
+        artifact: templates/without-convex/apps/api/src/password-reset-delivery.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b15
+    title: "B15: RBAC"
+    area: contracts
+    state: planned
+    summary: >-
+      Postgres auth carries an admin/member/viewer role field; that alone is not a reusable
+      permission model with server enforcement and cross-runtime denial fixtures.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/auth.ts
+      - templates/without-convex/packages/auth/src
+      - templates/with-convex/convex/auth.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Define typed roles/permissions/authorization decisions and enforce them on server
+        boundaries.
+      - >-
+        Add cross-runtime allow/deny parity tests while leaving application hierarchies and
+        assignments outside the shared package.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Postgres auth carries an admin/member/viewer role field; that alone is not a reusable
+          permission model with server enforcement and cross-runtime denial fixtures.
+        artifact: templates/without-convex/apps/api/src/auth.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b16
+    title: "B16: Transactional email and email UI"
+    area: contracts
+    state: planned
+    summary: >-
+      Postgres password resets use a development capture or production HTTPS webhook. Shared
+      responsive email templates, plaintext rendering, token-aligned preview gallery and
+      cross-variant delivery adapters are not implemented.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/password-reset-delivery.ts
+      - packages/ui/src/auth
+      - templates/with-convex/convex/auth.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Build the common account-email delivery/template package, with HTML/plaintext output and no
+        browser-only UI dependencies.
+      - >-
+        Add token-aligned previews and accessibility/render tests for verification, reset and
+        invitation messages.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Postgres password resets use a development capture or production HTTPS webhook. Shared
+          responsive email templates, plaintext rendering, token-aligned preview gallery and
+          cross-variant delivery adapters are not implemented.
+        artifact: templates/without-convex/apps/api/src/password-reset-delivery.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b17
+    title: "B17: Rate limiting"
+    area: contracts
+    state: planned
+    summary: >-
+      No shared rate-limit policy/counter/decision/header/error contract appears in the generated
+      API foundation. Framework or provider defaults do not satisfy the retained replaceable
+      contract.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/main.ts
+      - templates/without-convex/apps/api/src/auth.ts
+      - packages
+    priority: P2
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Implement subject keys, policy decisions, replaceable counters and protocol response
+        headers/errors.
+      - >-
+        Add conformance fixtures for concurrent requests and counter failure; applications own
+        thresholds and exceptions.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No shared rate-limit policy/counter/decision/header/error contract appears in the
+          generated API foundation. Framework or provider defaults do not satisfy the retained
+          replaceable contract.
+        artifact: templates/without-convex/apps/api/src/main.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b18
+    title: "B18: Deployment and release conventions"
+    area: adapters
+    state: planned
+    summary: >-
+      Environment contracts, health routes and provider infrastructure exist. A shared
+      provider-neutral release identity/readiness/migration/smoke/rollback contract with verified
+      adapters remains incomplete.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/env/src
+      - templates/base/apps/web/src/routes/api/health.ts
+      - templates/base/infra
+      - templates/without-convex/infra
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Specify release/build identity, secret/public configuration, migration ordering,
+        health/readiness, smoke evidence and rollback requirements.
+      - >-
+        Wire provider adapters to that contract and qualify a fresh release/rollback without baking
+        application policy into q9stack.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Environment contracts, health routes and provider infrastructure exist. A shared
+          provider-neutral release identity/readiness/migration/smoke/rollback contract with
+          verified adapters remains incomplete.
+        artifact: packages/env/src
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b19
+    title: "B19: Audit log"
+    area: contracts
+    state: planned
+    summary: >-
+      No shared append-only audit storage/query/viewer contract is present. Gate result reports and
+      operational logs are not application audit records.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/gates/src/core/report.ts
+      - packages
+      - templates
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement actor/action/resource/time/source/outcome records, storage/query seams and
+        authorized viewer primitives.
+      - >-
+        Verify append-only behavior, tamper sensitivity and retention hooks separately from
+        telemetry.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No shared append-only audit storage/query/viewer contract is present. Gate result reports
+          and operational logs are not application audit records.
+        artifact: packages/gates/src/core/report.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b20
+    title: "B20: API keys and service accounts"
+    area: contracts
+    state: planned
+    summary: >-
+      Templates use user-session authentication; no reusable scoped service-account/API-key
+      issuance/rotation/revocation contract is present.
+    theory: theory.md#scope-boundaries
+    code:
+      - templates/without-convex/apps/api/src/auth.ts
+      - templates/with-convex/convex/auth.ts
+      - packages
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement hashed secret storage, scoped machine principals, redacted listing,
+        rotation/revocation and audit hooks.
+      - Test cross-tenant denial, revoked/expired credentials and application-owned scope policy.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Templates use user-session authentication; no reusable scoped service-account/API-key
+          issuance/rotation/revocation contract is present.
+        artifact: templates/without-convex/apps/api/src/auth.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b21
+    title: "B21: Feature flags and remote configuration"
+    area: contracts
+    state: planned
+    summary: >-
+      No provider-neutral typed flag/config evaluation contract or feature-flag overlay is present.
+      This remains distinct from the optional PostHog adapter in B07.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/create-q9stack/src/core/plan.ts
+      - packages
+      - templates
+    priority: P2
+    size: M
+    size_reason: Several connected contract/wiring and verification changes.
+    remaining:
+      - >-
+        Implement typed values, evaluation context, safe defaults and server/client exposure
+        boundaries with replaceable providers.
+      - >-
+        Add deterministic fixtures for configuration absence, provider failure and targeting; keep
+        sensitive rules server-side.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No provider-neutral typed flag/config evaluation contract or feature-flag overlay is
+          present. This remains distinct from the optional PostHog adapter in B07.
+        artifact: packages/create-q9stack/src/core/plan.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b22
+    title: "B22: In-app notifications"
+    area: contracts
+    state: planned
+    summary: >-
+      No shared persisted in-app notification, read-state or inbox contract exists in the generated
+      foundation. UI primitives alone do not establish delivery state.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/ui/src
+      - templates/base/apps/web/src
+      - packages
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement notification records, preferences, read/unread state and deep-link seams with an
+        accessible inbox surface.
+      - >-
+        Allow push/email delivery to reference the same notification while preserving
+        application-owned wording/policy and idempotency.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No shared persisted in-app notification, read-state or inbox contract exists in the
+          generated foundation. UI primitives alone do not establish delivery state.
+        artifact: packages/ui/src
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b23
+    title: "B23: Security baseline"
+    area: quality
+    state: planned
+    summary: >-
+      Dependency/secret/static-security lanes and API CORS exist. They do not provide the full
+      retained CSP, CSRF/cookie, response-header, request-size and redaction baseline across both
+      variants.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/gates/src/lanes/semgrep.ts
+      - packages/gates/src/lanes/gitleaks.ts
+      - packages/gates/src/lanes/osv.ts
+      - templates/without-convex/apps/api/src/main.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Define and enforce missing runtime web/API security defaults for both variants, retaining
+        established framework protections.
+      - >-
+        Add regression fixtures and explicit documented exceptions; do not claim generic security
+        certification from static lanes alone.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          Dependency/secret/static-security lanes and API CORS exist. They do not provide the full
+          retained CSP, CSRF/cookie, response-header, request-size and redaction baseline across
+          both variants.
+        artifact: packages/gates/src/lanes/semgrep.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b24
+    title: "B24: Accessibility gates"
+    area: quality
+    state: planned
+    summary: >-
+      UI primitives contain accessibility semantics, but the gate registry has no accessibility lane
+      or automated/manual web/mobile/email qualification matrix. Existing components are not
+      completion of this broader gate outcome.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/ui/src/primitives
+      - packages/gates/src/lanes/index.ts
+      - templates/base/gate.config.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Add scoped automated keyboard/label/contrast/focus checks and a manual qualification
+        contract covering reduced motion, scaling, touch and email.
+      - >-
+        Integrate supported variants with actionable findings; keep device-only checks explicit
+        until mobile variants exist.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          UI primitives contain accessibility semantics, but the gate registry has no accessibility
+          lane or automated/manual web/mobile/email qualification matrix. Existing components are
+          not completion of this broader gate outcome.
+        artifact: packages/ui/src/primitives
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b25
+    title: "B25: Performance budgets"
+    area: quality
+    state: planned
+    summary: >-
+      The bundle-size lane already measures configured build targets. The retained outcome also
+      includes page loading, API latency, background resource use and mobile startup, which are not
+      covered by that lane.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/gates/src/lanes/bundle-size.ts
+      - packages/gates/src/lanes/index.ts
+      - templates/base/gate.config.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Retain the existing bundle budget implementation and add measurement/reporting contracts for
+        the uncovered runtime performance dimensions.
+      - >-
+        Let applications set thresholds and approved exceptions; qualify measurements on supported
+        variants rather than inventing universal budgets.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The bundle-size lane already measures configured build targets. The retained outcome also
+          includes page loading, API latency, background resource use and mobile startup, which are
+          not covered by that lane.
+        artifact: packages/gates/src/lanes/bundle-size.ts
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b26
+    title: "B26: Privacy and data lifecycle"
+    area: contracts
+    state: planned
+    summary: >-
+      No shared consent/classification/retention/export/anonymization/deletion-completion contract
+      exists in the template/package inventory. This is a future technical lifecycle foundation, not
+      a legal compliance claim.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages
+      - templates
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Implement typed lifecycle operations and completion evidence with application-owned
+        retention/jurisdiction decisions.
+      - >-
+        Add authorization, retry and deletion/export conformance fixtures; do not infer legal policy
+        from defaults.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          No shared consent/classification/retention/export/anonymization/deletion-completion
+          contract exists in the template/package inventory. This is a future technical lifecycle
+          foundation, not a legal compliance claim.
+        artifact: packages
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass
+  - id: roadmap.b27
+    title: "B27: Admin foundation"
+    area: contracts
+    state: planned
+    summary: >-
+      The UI package provides AppShell primitives, but there is no generated access-controlled admin
+      workflow for users/roles/API keys/audit/flags/webhooks/notifications. A shell is not that
+      complete product surface.
+    theory: theory.md#scope-boundaries
+    code:
+      - packages/ui/src/shell/AppShell.tsx
+      - templates/base/apps/web/src/routes
+      - packages/create-q9stack/src/core/plan.ts
+    priority: P2
+    size: L
+    size_reason: Cross-cutting retained contract; split into bounded deliveries before implementation.
+    remaining:
+      - >-
+        Build an optional authorized internal shell and screens only for approved shared
+        capabilities as they become available.
+      - >-
+        Verify server-side denial and secure secret/audit presentation; avoid a universal
+        product-admin abstraction.
+    evidence:
+      - kind: source_review
+        scope: Current implementation audit; not a live environment test
+        detail: >-
+          The UI package provides AppShell primitives, but there is no generated access-controlled
+          admin workflow for users/roles/API keys/audit/flags/webhooks/notifications. A shell is not
+          that complete product surface.
+        artifact: packages/ui/src/shell/AppShell.tsx
+        revision: 035f93d + local working-tree changes
+        environment: Local source inspection
+        date: "2026-09-08"
+        result: pass

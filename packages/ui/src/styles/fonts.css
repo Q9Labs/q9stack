@@ -1,0 +1,10 @@
+/*
+ * Self-hosted Geist. Import once at the app entry, before tokens.css:
+ *
+ *   import "@q9labsai/ui/fonts.css";
+ *
+ * Skip it and the `--font-sans` / `--font-mono` stacks fall back to system UI.
+ */
+
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";

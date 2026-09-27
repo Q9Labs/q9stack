@@ -1,0 +1,82 @@
+rules:
+  - id: q9.typescript.no-type-assertions
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      Type assertions are banned ("as const" is fine). Narrow with a real type
+      guard, a discriminated union, or schema validation at the boundary.
+    metadata:
+      category: correctness
+      why: >-
+        Assertions override the compiler without proving the value's shape, so
+        invalid states reach domain code unchecked.
+    paths:
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    patterns:
+      - pattern: $X as $TYPE
+      - pattern-not: $X as const
+      # Semgrep's TypeScript grammar also matches `void expr` statements as casts.
+      - pattern-not: void $X
+
+  - id: q9.typescript.no-shapeless-records
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Shapeless record types erase the domain shape. Model the real shape, or
+      validate with a schema at the boundary.
+    metadata:
+      category: correctness
+      why: >-
+        Record<any, unknown> and open index signatures erase the fields that
+        callers need to reason about, so domain invariants become unchecked.
+    paths:
+      include:
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+        - "**/*.test.*"
+    pattern-regex: \bRecord<\s*(?:any|unknown)\s*,|\bRecord<[^<>]*,\s*(?:any|unknown)\s*>|\[\w+\s*:\s*string\]\s*:\s*(?:any|unknown)\b
+
+  - id: q9.typescript.no-shape-erasing-guards
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      isRecord-style guards launder unknown into a shapeless record. Write a
+      guard or schema for the actual domain shape.
+    metadata:
+      category: correctness
+      why: >-
+        A generic record guard claims safety without checking domain fields, so
+        malformed data can pass the boundary and fail deeper in the system.
+    paths:
+      include:
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    pattern-regex: \bisRecord\s*[(<:=]|\bis\s+Record<\s*(?:any|unknown|string)\b
+
+  - id: q9.javascript.require-suppression-justification
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Suppressions need an adjacent justification.
+    metadata:
+      category: correctness
+      why: >-
+        An unexplained suppression hides a failed static check, so every
+        exception needs a nearby reason that reviewers can verify.
+    pattern-regex: (?m)^\s*//\s*(?:@ts-ignore|@ts-expect-error|eslint-disable(?:-next-line|-line)?|nosemgrep)(?!.*(?:because|reason|justification|intentional|safe|false positive|false-positive)).*$

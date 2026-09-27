@@ -1,0 +1,30 @@
+[
+  {
+    "version": 1,
+    "traceId": "1234567890abcdef1234567890abcdef",
+    "spanId": "1234567890abcdef",
+    "eventId": "event_1",
+    "occurredAt": 1780000000000,
+    "source": "browser",
+    "kind": "request",
+    "name": "convex.query",
+    "status": "error",
+    "level": "error",
+    "requestId": "request_12345678",
+    "attributes": { "response_class": "5xx", "duration_ms": 42 }
+  },
+  {
+    "version": 1,
+    "traceId": "1234567890abcdef1234567890abcdef",
+    "spanId": "abcdef1234567890",
+    "eventId": "event_2",
+    "occurredAt": 1780000001000,
+    "source": "server",
+    "kind": "error",
+    "name": "convex.function.failed",
+    "status": "error",
+    "level": "error",
+    "safeMessage": "Internal failure",
+    "safeStackFrames": [{ "file": "src/functions.ts", "line": 42, "column": 3, "function": "getCandidate" }]
+  }
+]

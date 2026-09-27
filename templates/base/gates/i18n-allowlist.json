@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "locale": "ar",
+      "id": "home.title",
+      "reason": "The generated product name is shared across locales."
+    }
+  ]
+}

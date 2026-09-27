@@ -1,0 +1,18 @@
+{
+  "$schema": "https://oxc.rs/schema/oxlintrc.json",
+  "extends": ["./node_modules/@q9labsai/config-oxlint/oxlint.json"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/coverage/**",
+    ".turbo/**",
+    ".worktrees/**",
+    "scratchpad/**",
+    "templates/**",
+    "registry/changelog/**",
+    "**/fixtures/**",
+    "**/__fixtures__/**",
+    "packages/config-semgrep/tests/**",
+    ".dependency-cruiser.cjs"
+  ]
+}

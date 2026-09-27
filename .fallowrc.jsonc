@@ -1,0 +1,42 @@
+{
+  // Fallow config for the q9stack monorepo. Templates are copied by create-q9stack,
+  // not built here, so their dependencies and the fleet-wide catalog are not "unused".
+  "entry": [
+    "gate.config.ts",
+    "packages/ui/preview/src/main.tsx",
+    "packages/ui/preview/shoot.ts",
+    "packages/config-semgrep/tests/*.ts",
+    "packages/config-semgrep/tests/*.tsx",
+  ],
+  "ignorePatterns": [
+    ".worktrees/**",
+    "scratchpad/**",
+    "templates/**",
+    // Registry sources import consumer aliases (@/components/ui/...) and only resolve once installed.
+    "registry/**",
+    "**/fixtures/**",
+    "**/__fixtures__/**",
+    "**/dist/**",
+  ],
+  "ignoreDependencies": [
+    "@q9labsai/config-semgrep",
+    "@q9labsai/config-depcruise",
+    "@q9labsai/gates",
+    "@q9labsai/config-oxlint",
+  ],
+  "rules": {
+    // The root catalog pins packages that are consumed only by the templates.
+    "unused-catalog-entries": "off",
+  },
+  "duplicates": {
+    "ignore": ["packages/gates/gate.config.example.ts"],
+  },
+  "health": {
+    "maxCyclomatic": 15,
+    "maxCognitive": 15,
+    "maxCrap": 60,
+  },
+  "audit": {
+    "gate": "all",
+  },
+}

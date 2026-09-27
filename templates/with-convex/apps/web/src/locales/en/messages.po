@@ -1,0 +1,143 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: __APP_NAME__\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.description"
+msgstr "A small, accessible starting point backed by Convex."
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.admin"
+msgstr "Admin workspace"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.archived"
+msgstr "Archived"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.changed"
+msgstr "Changed"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.title"
+msgstr "Changelog"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.description"
+msgstr "Changes in recent releases, newest first."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.badge"
+msgstr "Convex sample data"
+
+#. js-lingui-explicit-id
+#: src/routes/sign-up.tsx
+msgid "auth.signup.title"
+msgstr "Create an account"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.account"
+msgstr "Current account"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.fixed"
+msgstr "Fixed"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.loading"
+msgstr "Loading samples…"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.member"
+msgstr "Member workspace"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.added"
+msgstr "New"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.unseen"
+msgstr "New updates"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.empty"
+msgstr "No release notes yet. New features and fixes will appear here after the next release."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.empty"
+msgstr "No samples yet."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.published"
+msgstr "Published"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.title"
+msgstr "__APP_NAME__"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.viewer"
+msgstr "Read-only workspace"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.removed"
+msgstr "Removed"
+
+#. js-lingui-explicit-id
+#: src/routes/forgot-password.tsx
+msgid "auth.forgot.title"
+msgstr "Reset your password"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.security"
+msgstr "Security"
+
+#. js-lingui-explicit-id
+#: src/routes/sign-in.tsx
+msgid "auth.login.title"
+msgstr "Sign in"
+
+#. js-lingui-explicit-id
+#: src/components/locale-switcher.tsx
+msgid "shell.language"
+msgstr "Switch language"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.version"
+msgstr "Version {version}"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.button"
+msgstr "View release notes"

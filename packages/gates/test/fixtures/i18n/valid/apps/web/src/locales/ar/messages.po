@@ -1,0 +1,19 @@
+msgid ""
+msgstr ""
+"Language: ar\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "greeting"
+msgstr "مرحبًا {name}"
+
+msgctxt "toolbar"
+msgid "save"
+msgstr ""
+"حفظ "
+"التغييرات"
+
+msgid "invitation.count"
+msgstr "{count, plural, zero {لا توجد دعوات لـ {name}} one {هناك دعوة لـ {name}} two {هناك دعوتان لـ {name}} few {هناك بعض الدعوات لـ {name}} many {هناك دعوات كثيرة لـ {name}} other {هناك دعوات لـ {name}}}"
+
+msgid "product.name"
+msgstr "Q9Stack"

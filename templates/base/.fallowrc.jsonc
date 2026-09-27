@@ -1,0 +1,21 @@
+{
+  // Project-wide fallow config; `q9gate` runs `fallow audit` through the fallow lane.
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.wrangler/**",
+    "**/.output/**",
+    "**/routeTree.gen.ts",
+  ],
+  // Same ceilings as q9stack itself: split functions instead of raising these.
+  "health": {
+    "maxCyclomatic": 15,
+    "maxCognitive": 15,
+    "maxCrap": 60,
+  },
+  // Consumed by q9gate lane commands and config extends rather than imports.
+  "ignoreDependencies": ["@q9labsai/config-oxlint", "@q9labsai/config-semgrep", "react-doctor"],
+  "audit": {
+    "gate": "all",
+  },
+}

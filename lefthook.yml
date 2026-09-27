@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    gate:
+      run: ./node_modules/.bin/q9gate run --staged
+      skip:
+        # Fresh clone / lanes before the gate package is built: commit must not break.
+        - run: test ! -x node_modules/.bin/q9gate

@@ -1,0 +1,11 @@
+name = "worker"
+
+[vars]
+API_KEY = "x"
+PUBLIC_URL = "y"
+
+[env.preview.vars]
+PREVIEW_ONLY = "preview"
+
+[env.production.vars]
+PRODUCTION_ONLY = "production"

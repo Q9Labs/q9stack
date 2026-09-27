@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@import "../../src/styles/fonts.css";
+@import "../../src/styles/tokens.css";
+
+@source "../../src";
+@source "./";
+
+html,
+body,
+#root {
+  height: 100%;
+}

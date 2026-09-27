@@ -1,0 +1,6 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "item.count"
+msgstr "{count, plural, one {One item} other {# items}}"

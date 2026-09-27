@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Language: ar\n"
+
+msgid "greeting"
+msgstr "مرحبًا {user}"
+
+msgid "due.date"
+msgstr "الموعد {date, number}"

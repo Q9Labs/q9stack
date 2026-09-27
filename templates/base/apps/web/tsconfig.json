@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@q9labsai/config-tsconfig/tsconfig.react.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "node", "vite/client"]
+  },
+  "include": [
+    "src",
+    "e2e",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "lingui.config.ts",
+    "playwright.config.ts"
+  ]
+}

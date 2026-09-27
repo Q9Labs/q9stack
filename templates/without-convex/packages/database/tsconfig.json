@@ -1,0 +1,8 @@
+{
+  "extends": "@q9labsai/config-tsconfig/tsconfig.library.json",
+  "compilerOptions": {
+    "rootDir": "."
+  },
+  "include": ["src", "migrations", "scripts", "test", "*.config.ts"],
+  "exclude": ["dist"]
+}

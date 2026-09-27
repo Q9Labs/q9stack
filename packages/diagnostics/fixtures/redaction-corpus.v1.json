@@ -1,0 +1,10 @@
+{
+  "safe": { "status": "ok", "response_class": "2xx", "retryable": false, "size_bucket": "small", "duration_ms": 42 },
+  "forbidden": {
+    "message": "private text", "displayName": "Person Name", "email": "person@example.invalid",
+    "token": "Bearer secret", "url": "https://example.invalid/private?token=x",
+    "headers": { "authorization": "secret" }, "body": "private payload",
+    "transcript": "spoken content", "deviceLabel": "private device",
+    "candidate": "candidate:1 1 UDP 10.0.0.1", "exception": { "message": "private" }
+  }
+}

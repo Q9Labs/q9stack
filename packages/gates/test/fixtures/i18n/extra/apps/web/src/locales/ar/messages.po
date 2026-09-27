@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Language: ar\n"
+
+msgid "translated"
+msgstr "جاهز"
+
+msgid "not.in.source"
+msgstr "رسالة زائدة"

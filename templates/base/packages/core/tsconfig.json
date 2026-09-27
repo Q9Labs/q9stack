@@ -1,0 +1,12 @@
+{
+  "extends": "@q9labsai/config-tsconfig/tsconfig.library.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src", "test", "*.config.ts"],
+  "exclude": ["dist"]
+}

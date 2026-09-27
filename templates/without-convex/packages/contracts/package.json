@@ -1,0 +1,57 @@
+{
+  "name": "@__APP_SLUG__/contracts",
+  "version": "0.1.0",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/without-convex/packages/contracts#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/without-convex/packages/contracts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "openapi.json"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev:prepare": "tsdown --no-clean",
+    "dev:watch": "tsdown --watch --no-clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "contracts:generate": "tsx src/openapi.ts && oxfmt --write openapi.json"
+  },
+  "dependencies": {
+    "@__APP_SLUG__/core": "workspace:*",
+    "@effect/platform": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@q9labsai/config-tsconfig": "catalog:",
+    "oxfmt": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

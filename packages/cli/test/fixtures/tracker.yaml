@@ -1,0 +1,27 @@
+schema_version: 7
+principle: Ship useful work
+sizing: Estimate remaining work
+outcomes:
+  - id: demo.first
+    title: First feature
+    area: foundation
+    state: planned
+    summary: A useful feature
+    priority: P0
+    size: S
+    size_reason: Small work
+    remaining:
+      - Implement it
+    theory: note.md#purpose
+    code:
+      - note.md
+    evidence:
+      - kind: prior_assessment
+        from:
+          - note.md
+  - id: demo.second
+    title: Second feature
+    area: custom
+    state: working
+    summary: Already works
+    code: []

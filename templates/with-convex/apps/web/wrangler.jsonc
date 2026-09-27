@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__APP_SLUG__-web",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-08-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "APP_ENV": "dev",
+    "APP_URL": "http://localhost:3000",
+    "LOG_LEVEL": "info",
+    "OPENROUTER_API_KEY": "",
+    "SENTRY_DSN": "",
+    "VITE_CONVEX_URL": "",
+  },
+}

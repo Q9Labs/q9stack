@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "ecosystem": "npm",
+      "id": "GHSA-qq9h-g4jm-xgf3",
+      "package": "better-auth",
+      "source": "pnpm-lock.yaml",
+      "version": "1.6.15",
+      "summary": "Not applicable here: the pre-account hijack requires the magic-link or email-OTP plugin and this app uses email+password sign-in only. Pinned to 1.6.15 because @convex-dev/better-auth 0.12.5 types break against 1.6.16+; drop this entry when the component supports a fixed better-auth."
+    }
+  ]
+}

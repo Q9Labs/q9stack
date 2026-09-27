@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "product.name"
+msgstr "Q9Stack"
+
+msgid "future.notice"
+msgstr "Coming soon"

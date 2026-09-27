@@ -1,0 +1,54 @@
+{
+  "name": "@q9labsai/cli",
+  "version": "0.1.0",
+  "description": "Project tracker, development process, and changelog tools for q9labs agents",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/cli#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "q9": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && vitest run"
+  },
+  "dependencies": {
+    "@q9labsai/diagnostics": "workspace:*",
+    "cac": "catalog:",
+    "js-yaml": "catalog:",
+    "semver": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/js-yaml": "catalog:",
+    "@types/node": "catalog:",
+    "@types/semver": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

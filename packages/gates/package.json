@@ -1,0 +1,60 @@
+{
+  "name": "@q9labsai/gates",
+  "version": "0.1.0",
+  "description": "Diff-aware static-check orchestration for q9labs repositories",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/gates#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/gates"
+  },
+  "bin": {
+    "q9gate": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "gate.config.example.ts",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cac": "catalog:",
+    "execa": "catalog:",
+    "fast-glob": "catalog:",
+    "gettext-parser": "catalog:",
+    "picocolors": "catalog:",
+    "semver": "catalog:",
+    "smol-toml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/gettext-parser": "catalog:",
+    "@types/node": "catalog:",
+    "@types/semver": "catalog:",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

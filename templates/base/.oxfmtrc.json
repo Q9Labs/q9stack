@@ -1,0 +1,23 @@
+{
+  "printWidth": 100,
+  "tabWidth": 2,
+  "endOfLine": "lf",
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "insertFinalNewline": true,
+  "sortImports": true,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.turbo/**",
+    "**/.wrangler/**",
+    "**/.output/**",
+    "**/routeTree.gen.ts",
+    "pnpm-lock.yaml",
+    "CHANGELOG.md",
+    "**/fixtures/**",
+    "**/__fixtures__/**"
+  ]
+}

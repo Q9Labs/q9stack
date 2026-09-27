@@ -1,0 +1,108 @@
+rules:
+  - id: q9.ui.no-physical-direction-classes
+    message: Use logical direction utilities so the UI works in LTR and RTL.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include:
+        - "**/*.tsx"
+    pattern-regex: >-
+      (?:(?<![\w-])-?(?:(?:m|p)[lr]|left|right)-(?:[0-9]+(?:\.[0-9]+)?(?:/[0-9]+)?|px|auto|full|[A-Za-z][A-Za-z0-9_]*|\[[^\]\s]+\]|\(--[^)\s]+\))|(?<![\w-])(?:rounded-[lr]|border-[lr])(?:-(?:[A-Za-z0-9][A-Za-z0-9-]*|\[[^\]\s]+\]|\(--[^)\s]+\)))?|(?<![\w-])text-(?:left|right))(?=$|[\s"'`,;)}\]])
+
+  - id: q9.typescript.no-optional-field-soup
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      This object type has four or more optional fields and no discriminant.
+      Prefer a discriminated union so valid states are explicit.
+    metadata:
+      category: maintainability
+      why: >-
+        Several optional fields describe implicit states that callers must
+        reconstruct, so a discriminated union makes valid combinations clear.
+    paths:
+      include:
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+        - "**/*.test.*"
+    patterns:
+      - pattern-regex: >-
+          \b(?:interface\s+[A-Za-z_$][\w$]*|type\s+[A-Za-z_$][\w$]*\s*=\s*)\s*\{(?:[^{}]*\b[A-Za-z_$][\w$]*\?\s*:\s*){4}[^{}]*\}
+      - pattern-not-regex: '\b(?:kind|type|_tag)\s*\??\s*:'
+      # Knob bags (component props, call options, tool config) are optional by nature.
+      - pattern-not-regex: '\b(?:interface|type)\s+[A-Za-z_$][\w$]*(?:Props|Options|Config|Settings|Overrides)\b'
+
+  - id: q9.typescript.no-optional-boolean-flag-pairs
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Optional boolean flags create implicit state combinations. Prefer a
+      discriminated union or one explicit status field.
+    metadata:
+      category: maintainability
+      why: >-
+        Independent optional isX flags multiply the possible states, including
+        contradictory combinations, so one explicit state is easier to validate.
+    paths:
+      include:
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+        - "**/*.test.*"
+    pattern-regex: >-
+      \b(?:interface\s+[A-Za-z_$][\w$]*|type\s+[A-Za-z_$][\w$]*\s*=\s*)\s*\{[^{}]*\bis[A-Z_$][\w$]*\?\s*:\s*boolean\b[^{}]*\bis[A-Z_$][\w$]*\?\s*:\s*boolean\b[^{}]*\}
+
+  - id: q9.javascript.no-unvalidated-json-parse
+    languages: [javascript, typescript]
+    mode: taint
+    severity: WARNING
+    message: >-
+      Validate JSON.parse output before reading properties. Pass it through a
+      parse, decode, validate, or Schema boundary first.
+    metadata:
+      category: correctness
+      why: >-
+        JSON.parse returns an unchecked value, so property access before a
+        validation boundary can turn malformed input into a runtime failure.
+    paths:
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    pattern-sources:
+      - pattern: JSON.parse(...)
+        exact: true
+    pattern-sinks:
+      - patterns:
+          - pattern: $VALUE.$PROPERTY
+          - pattern-not: JSON.parse
+      - patterns:
+          - pattern: $VALUE[$PROPERTY]
+          - pattern-not: JSON.parse
+    pattern-sanitizers:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(parse|parseAsync|safeParse|safeParseAsync|decode|decodeUnknown|decodeUnknownSync|decodeUnknownEither|decodeUnknownOption|decodeUnknownPromise|validate|validateSync|Schema|is|asserts?)$
+      - patterns:
+          - pattern: $SCHEMA.$FN(...)
+          - metavariable-regex:
+              metavariable: $SCHEMA
+              regex: (?i)(?!JSON$).+
+          - metavariable-regex:
+              metavariable: $FN
+              regex: ^(parse|parseAsync|safeParse|safeParseAsync|decode|decodeUnknown|decodeUnknownSync|decodeUnknownEither|decodeUnknownOption|decodeUnknownPromise|validate|validateSync|is|asserts?)$

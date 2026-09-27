@@ -1,0 +1,19 @@
+{
+  "$schema": "https://oxc.rs/schema/oxlint.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "plugins": ["unicorn"],
+  "rules": {
+    "no-console": [
+      "warn",
+      {
+        "allow": ["warn", "error"]
+      }
+    ],
+    "eqeqeq": "error",
+    "unicorn/prefer-node-protocol": "error"
+  }
+}

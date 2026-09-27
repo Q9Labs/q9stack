@@ -1,0 +1,62 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "concurrency": "50%",
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "APP_ENV",
+    "APP_URL",
+    "LOG_LEVEL",
+    "OPENROUTER_API_KEY",
+    "SENTRY_DSN"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/*.test.*", "!**/*.spec.*"],
+      "outputs": ["dist/**", ".output/**", "build/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/dist/**", "!**/coverage/**"],
+      "outputs": ["coverage/**"]
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
+      "outputs": []
+    },
+    "dev:prepare": {
+      "dependsOn": ["^dev:prepare"],
+      "cache": false,
+      "outputs": ["dist/**"]
+    },
+    "dev:watch": {
+      "dependsOn": ["dev:prepare"],
+      "cache": false,
+      "persistent": true
+    },
+    "dev:server": {
+      "dependsOn": ["^dev:prepare"],
+      "cache": false,
+      "persistent": true
+    },
+    "@__APP_SLUG__/web#dev:server": {
+      "dependsOn": ["^dev:prepare"],
+      "with": ["@__APP_SLUG__/env#dev:watch"],
+      "cache": false,
+      "persistent": true
+    },
+    "deploy": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": []
+    }
+  }
+}

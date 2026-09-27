@@ -1,0 +1,13 @@
+{
+  "name": "__APP_SLUG__",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/base"
+  },
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/base#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "dependencies": {
+    "@q9labsai/ui": "workspace:*"
+  }
+}

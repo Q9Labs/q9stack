@@ -1,0 +1,33 @@
+name: Recipe proposal
+description: Propose a reusable recipe for a shared concern.
+title: "recipe: "
+labels: [recipe]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What shared problem should this recipe address?
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference implementation
+      description: Name the project and the paths that show the existing implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: stacks
+    attributes:
+      label: Supported stacks
+      description: Which stacks or providers need notes or variants?
+    validations:
+      required: true
+  - type: textarea
+    id: conformance
+    attributes:
+      label: Conformance check
+      description: How can a project prove it follows the recipe?
+    validations:
+      required: true

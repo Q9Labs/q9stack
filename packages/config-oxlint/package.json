@@ -1,0 +1,53 @@
+{
+  "name": "@q9labsai/config-oxlint",
+  "version": "0.1.0",
+  "description": "Shareable Oxlint and Oxfmt configurations for q9labs projects",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/config-oxlint#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/config-oxlint"
+  },
+  "files": [
+    "dist",
+    "oxlint.json",
+    "react.json",
+    "node.json",
+    "oxfmt.json",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./oxlint.json": "./oxlint.json",
+    "./react.json": "./react.json",
+    "./node.json": "./node.json",
+    "./oxfmt.json": "./oxfmt.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown && node scripts/assert-build-artifacts.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

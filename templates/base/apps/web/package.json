@@ -1,0 +1,75 @@
+{
+  "name": "@__APP_SLUG__/web",
+  "version": "0.1.0",
+  "description": "The __APP_NAME__ TanStack Start web application",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/templates/base/apps/web#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "templates/base/apps/web"
+  },
+  "files": [
+    ".output",
+    "src",
+    "e2e",
+    "README.md",
+    "playwright.config.ts",
+    "wrangler.jsonc"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/router.tsx",
+      "import": "./src/router.tsx"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "pnpm -w exec turbo run @__APP_SLUG__/web#dev:server --concurrency=20",
+    "dev:server": "pnpm -w run changelog:export && vite dev",
+    "build": "pnpm -w run changelog:export && vite build",
+    "preview": "vite preview",
+    "deploy": "wrangler deploy",
+    "typecheck": "pnpm -w run changelog:export && tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "e2e": "playwright test",
+    "i18n:extract": "lingui extract --config lingui.config.ts"
+  },
+  "dependencies": {
+    "@__APP_SLUG__/env": "workspace:*",
+    "@fontsource-variable/geist": "catalog:",
+    "@fontsource-variable/geist-mono": "catalog:",
+    "@hugeicons/core-free-icons": "catalog:",
+    "@lingui/core": "catalog:",
+    "@lingui/react": "catalog:",
+    "@q9labsai/ui": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@tanstack/react-start": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
+    "@cloudflare/workers-types": "catalog:",
+    "@lingui/cli": "catalog:",
+    "@lingui/format-po": "catalog:",
+    "@lingui/vite-plugin": "catalog:",
+    "@playwright/test": "catalog:",
+    "@q9labsai/config-tsconfig": "catalog:",
+    "@rolldown/plugin-babel": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

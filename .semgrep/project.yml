@@ -1,0 +1,2 @@
+# Project-owned Semgrep rules belong here. Package rule packs are resolved from gate.config.ts.
+rules: []

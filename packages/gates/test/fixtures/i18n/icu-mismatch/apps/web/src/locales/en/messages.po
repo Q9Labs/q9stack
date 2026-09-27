@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "greeting"
+msgstr "Hello {name}"
+
+msgid "due.date"
+msgstr "Due {date, date, long}"

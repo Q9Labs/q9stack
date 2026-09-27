@@ -1,0 +1,123 @@
+rules:
+  - id: q9.javascript.no-dynamic-code
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Avoid eval and new Function. Keep executable code in static modules.
+    metadata:
+      category: security
+      why: >-
+        Dynamic code turns data into executable instructions, so input that
+        reaches eval or Function can become code execution.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: q9.javascript.no-unsanitized-dangerously-set-inner-html
+    languages: [generic]
+    severity: ERROR
+    message: Sanitize HTML before assigning dangerouslySetInnerHTML.
+    metadata:
+      category: security
+      why: >-
+        dangerouslySetInnerHTML writes markup without React escaping it, so an
+        untrusted value can become a cross-site scripting payload.
+    paths:
+      include:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    pattern-regex: >-
+      (?s)<[A-Za-z](?![^>]*\bdangerouslySetInnerHTML\s*=\s*\{\{[^}]*\b(?:sanitize|purify|escape|encode)\b)[^>]*\bdangerouslySetInnerHTML\s*=\s*\{\{(?![^}]*\b(?:sanitize|purify|escape|encode)\b)[^}]*\}\}[^>]*/?>
+
+  - id: q9.javascript.require-noopener-for-blank-target
+    languages: [generic]
+    severity: ERROR
+    message: Links with target="_blank" must include rel="noopener".
+    metadata:
+      category: security
+      why: >-
+        A blank-target link without noopener gives the opened page access to
+        window.opener, so it can navigate or manipulate the source page.
+    paths:
+      include:
+        - "**/*.js"
+        - "**/*.jsx"
+        - "**/*.ts"
+        - "**/*.tsx"
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    pattern-regex: >-
+      (?s)<[A-Za-z](?![^>]*\brel\s*=\s*["'][^"']*\bnoopener\b[^"']*["'])[^>]*\btarget\s*=\s*["']_blank["'][^>]*/?>
+
+  - id: q9.javascript.no-child-process-exec-template
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Do not pass a template string to child_process.exec.
+    metadata:
+      category: security
+      why: >-
+        Template interpolation can place untrusted text in a shell command, so
+        child_process.exec may execute an attacker-controlled command.
+    pattern-either:
+      - pattern: child_process.exec(`...`)
+      - pattern: childProcess.exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import * as child_process from "node:child_process"
+              ...
+          - pattern: child_process.exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import * as child_process from "child_process"
+              ...
+          - pattern: child_process.exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import * as childProcess from "node:child_process"
+              ...
+          - pattern: childProcess.exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import * as childProcess from "child_process"
+              ...
+          - pattern: childProcess.exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import { exec } from "node:child_process"
+              ...
+          - pattern: exec(`...`)
+      - patterns:
+          - pattern-inside: |
+              import { exec } from "child_process"
+              ...
+          - pattern: exec(`...`)
+
+  - id: q9.javascript.no-hard-coded-provider-token
+    languages: [generic]
+    severity: ERROR
+    message: Do not commit hard-coded provider tokens. Load them from a secret source.
+    metadata:
+      category: security
+      why: >-
+        A provider token in source can be copied from version control, so secret
+        material must enter through a managed environment or secret store.
+    paths:
+      exclude:
+        - "**/dist/**"
+        - "**/build/**"
+        - "**/_generated/**"
+        - "**/*.gen.ts"
+        - "**/node_modules/**"
+    pattern-regex: >-
+      (?i)(?:\bsk-[A-Za-z0-9_-]{16,}\b|\bAKIA[0-9A-Z]{16}\b)

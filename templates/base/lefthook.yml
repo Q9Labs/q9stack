@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    gate:
+      run: pnpm tracker:check && pnpm changelog:check && ./node_modules/.bin/q9gate run --staged

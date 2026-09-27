@@ -1,0 +1,7 @@
+{
+  "extends": ["./oxlint.json"],
+  "plugins": ["typescript", "unicorn", "node"],
+  "env": {
+    "node": true
+  }
+}

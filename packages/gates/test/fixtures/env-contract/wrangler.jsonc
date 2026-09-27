@@ -1,0 +1,19 @@
+{
+  // Same root and per-environment variables as wrangler.toml.
+  "vars": {
+    "API_KEY": "x",
+    "PUBLIC_URL": "y",
+  },
+  "env": {
+    "preview": {
+      "vars": {
+        "PREVIEW_ONLY": "preview",
+      },
+    },
+    "production": {
+      "vars": {
+        "PRODUCTION_ONLY": "production",
+      },
+    },
+  },
+}

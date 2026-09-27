@@ -1,0 +1,19 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "greeting"
+msgstr "Hello {name}"
+
+msgctxt "toolbar"
+msgid "save"
+msgstr ""
+"Save "
+"changes"
+
+msgid "invitation.count"
+msgstr "{count, plural, one {There is {name}} other {There are several {name}}}"
+
+msgid "product.name"
+msgstr "Q9Stack"

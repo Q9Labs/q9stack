@@ -1,0 +1,57 @@
+{
+  "name": "@q9labsai/ai",
+  "version": "0.1.0",
+  "description": "Effect-wrapped OpenRouter and Vercel AI SDK primitives for q9labs applications",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/ai#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/ai"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plain": {
+      "types": "./dist/plain.d.ts",
+      "import": "./dist/plain.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown --config tsdown.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "catalog:",
+    "ai": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

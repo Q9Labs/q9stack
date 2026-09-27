@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@q9labsai/config-tsconfig/tsconfig.base.json",
+  "files": []
+}

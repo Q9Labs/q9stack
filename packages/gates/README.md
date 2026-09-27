@@ -1,0 +1,190 @@
+# @q9labsai/gates
+
+`@q9labsai/gates` is a diff-aware quality gate for pnpm repositories. It classifies a Git diff, explains why each configured lane will run or skip, schedules independent lanes concurrently, runs exclusive lanes alone, and always writes a schema-v1 `gate.report.json`.
+
+The package requires Node 24 or newer. A TypeScript `gate.config.ts` loads through Node's native type stripping, so no config loader is needed.
+
+## Install
+
+```sh
+pnpm add -D @q9labsai/gates
+```
+
+Add a root script and initialize the project-owned files:
+
+```json
+{
+  "scripts": {
+    "gate": "q9gate run --staged"
+  }
+}
+```
+
+```sh
+pnpm q9gate init
+```
+
+`init` writes `gate.config.ts`, `.semgrep/project.yml`, `gates/baselines/README.md`, `gates/test-presence-exclusions.json`, `osv-baseline.json`, `cspell-baseline.txt`, and a Lefthook pre-commit command. It refuses to overwrite a file unless `--force` is present. If `lefthook.yml` already exists, it prints the snippet instead of changing the file.
+
+## Configuration
+
+```ts
+import { defineGate, lanes } from "@q9labsai/gates";
+
+export default defineGate({
+  workspaceRoots: ["apps", "packages", "convex"],
+  classifiers: {
+    source: [".ts", ".tsx", ".mjs", ".cjs", ".js", ".jsx"],
+    docs: ["scratchpad/", "*.md", "*.mdx", "*.txt"],
+    dependency: ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"],
+    gateDefinition: ["gate.config.ts", "lefthook.yml", "turbo.json"],
+    infra: ["infra/"],
+    contract: ["packages/contracts/"],
+    env: ["packages/env/src/env.ts"],
+  },
+  concurrency: "50%",
+  lanes: [
+    lanes.typecheck(),
+    lanes.lint(),
+    lanes.format(),
+    lanes.test(),
+    lanes.build(),
+    lanes.i18n(),
+    lanes.osv(),
+    lanes.cspell(),
+    lanes.hygiene(),
+  ],
+});
+```
+
+`classify()` recognizes `source`, `test`, `docs`, `dependency`, `gateDefinition`, `infra`, `contract`, `workflow`, `shell`, `sql`, `env`, and `ui`. Configured classifier patterns extend the defaults. Paths that do not match any category fail closed and force a full gate.
+
+The planner applies these rules before lane triggers:
+
+- A gate-definition change or `--full` runs every lane.
+- A documentation-only change runs only `cspell` and `hygiene`.
+- A dependency change forces `osv`, `syncpack`, `version-drift`, `typecheck`, and `build`.
+- Every other lane runs when its declared categories match. The plan prints the matching count or the skip reason before execution starts.
+
+`concurrency` accepts a positive integer or a percentage such as `"50%"`. Percentage values use `os.availableParallelism()`. `typecheck`, `test`, `build`, `tofu`, and generated-drift lanes are exclusive and run without another lane beside them.
+
+## CLI
+
+```text
+q9gate run [--staged | --base <ref> | --full] [--lane <id>...] [--concurrency N|N%] [--json] [--paranoid]
+q9gate init [--force]
+q9gate doctor
+q9gate why <file>
+q9gate accept-baseline <lane> --message "why"
+```
+
+`run` defaults to the staged diff. `--base` uses `<ref>...HEAD`; `--full` uses every tracked and unignored file. The command always writes `gate.report.json`, returns a nonzero status when a lane fails, and also prints the JSON when `--json` is present. Repeat `--lane` to run explicit configured lanes. `--paranoid` compares `git status --porcelain` before and after each lane and fails a lane that changes the tree.
+
+`doctor` validates declared baselines, checks required tools with install hints, scans workspace scripts and gate wiring for unsafe or placeholder commands, and points to `run --paranoid` for runtime immutability checks. `why` classifies one relative path and prints every lane's reason. `accept-baseline` requires an approval message and writes it with a timestamp into the lane's declared baseline data.
+
+## Lane reference
+
+Missing required commands fail their lane with an install hint. The `tofu` lane treats TFLint and Trivy as optional: a missing optional tool adds a finding and increments `toolsSkipped`, but does not fail the lane.
+
+| Factory and lane id                                   | Options                                                                                           | Trigger categories                                   | Baseline                                                                        | Behavior                                                                                                                                                                                                                                     |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lanes.typecheck()` / `typecheck`                     | `command`, `args`; defaults to `pnpm run typecheck`                                               | source, test, dependency, contract                   | none                                                                            | Runs alone.                                                                                                                                                                                                                                  |
+| `lanes.lint()` / `lint`                               | `config`, `typeAware`; type-aware mode defaults on when `oxlint-tsgolint` resolves                | source, ui                                           | none                                                                            | Runs Oxlint on matching changed files, or `.` for a full gate.                                                                                                                                                                               |
+| `lanes.format()` / `format`                           | `config`                                                                                          | source, docs, gateDefinition, env, workflow, shell   | none                                                                            | Runs `oxfmt --check` on matching changed files, or `.` for a full gate. The docs-only planner rule still skips it.                                                                                                                           |
+| `lanes.test()` / `test`                               | `command`, `args`; defaults to `pnpm run test`                                                    | source, test, contract                               | none                                                                            | Runs alone.                                                                                                                                                                                                                                  |
+| `lanes.build()` / `build`                             | `command`, `args`; defaults to `pnpm run build`                                                   | source, test, dependency, contract                   | none                                                                            | Runs alone.                                                                                                                                                                                                                                  |
+| `lanes.fallow()` / `fallow`                           | `baselineDir`, default `gates/baselines/fallow`                                                   | source                                               | `dead-code.json`, `health.json`, and `dupes.json` in `baselineDir` when present | Sends the staged diff to Fallow or uses `--changed-since` for branch scope; emits dead-code, duplication, complexity, and dependency metrics when Fallow reports them.                                                                       |
+| `lanes.semgrep()` / `semgrep`                         | `packs`, default `[".semgrep"]`                                                                   | source, ui                                           | none                                                                            | Resolves package-exported and project YAML packs, repeats `--config` for each, adds `--error`, and scopes selective runs to changed source files.                                                                                            |
+| `lanes.depcruise()` / `depcruise`                     | `config`, default `.dependency-cruiser.cjs`; `source`, default `.`                                | source, contract                                     | none                                                                            | Runs Dependency Cruiser with the project config.                                                                                                                                                                                             |
+| `lanes.osv()` / `osv`                                 | `baselinePath`, default `osv-baseline.json`                                                       | dependency                                           | `osv-baseline.json`                                                             | Runs OSV-Scanner, normalizes findings by source, package, version, ecosystem, and advisory id, and fails on findings absent from the reviewed baseline.                                                                                      |
+| `lanes.gitleaks()` / `gitleaks`                       | `baselinePath` or its `baseline` alias; optional `config`                                         | always, except the docs-only override                | optional supplied JSON path                                                     | Runs `gitleaks detect --source . --redact --verbose`.                                                                                                                                                                                        |
+| `lanes.cspell()` / `cspell`                           | `baselinePath`, default `cspell-baseline.txt`; optional tracked `paths`                           | every category                                       | `cspell-baseline.txt`                                                           | Runs CSpell through a stdin file list and fails only on normalized issue lines absent from the text baseline.                                                                                                                                |
+| `lanes.syncpack()` / `syncpack`                       | none                                                                                              | dependency                                           | none                                                                            | Runs `syncpack lint`.                                                                                                                                                                                                                        |
+| `lanes.testPresence()` / `test-presence`              | `sourceRoots`, default `["src"]`; `exclusionsPath`, default `gates/test-presence-exclusions.json` | source, test                                         | none                                                                            | Requires meaningful source files to have a nearby test, be imported by a test, or have a reviewed exclusion with a useful reason.                                                                                                            |
+| `lanes.reactDoctor()` / `react-doctor`                | `command`, default `react-doctor`; `scanCommand`, default `react-scan`                            | ui                                                   | none                                                                            | Runs React Doctor on changed code and verifies the React Scan runtime, lite instrumentation, and Vite plugin surfaces.                                                                                                                       |
+| `lanes.shellcheck()` / `shellcheck`                   | none                                                                                              | shell                                                | none                                                                            | Checks changed `*.sh` files, or every tracked shell file for a full gate.                                                                                                                                                                    |
+| `lanes.actionlint()` / `actionlint`                   | none                                                                                              | workflow                                             | none                                                                            | Checks changed workflow files, or all workflows for a full gate.                                                                                                                                                                             |
+| `lanes.tofu()` / `tofu`                               | none                                                                                              | infra                                                | none                                                                            | Runs alone: `tofu fmt -check -recursive`, `tofu validate` for each `infra/stacks/*` directory, TFLint per stack, and `trivy config infra`.                                                                                                   |
+| `lanes.contractDrift()` / `contract-drift`            | required `generate` command; optional diff `paths`                                                | contract                                             | none                                                                            | Runs alone, detects generated changes, reports the scoped diff, and restores every path changed by the generator. It refuses to run when the tree already has unstaged or untracked changes because those changes cannot be restored safely. |
+| `lanes.convexCodegenDrift()` / `convex-codegen-drift` | none                                                                                              | contract                                             | none                                                                            | Applies the same restore-safe drift check to `convex codegen` and fails with an install hint when Convex is absent.                                                                                                                          |
+| `lanes.envContract()` / `env-contract`                | required `schema` module and `sources` globs                                                      | env                                                  | none                                                                            | Loads the schema's exported `keys()` or uses a static fallback, then compares it with Wrangler vars, dotenv keys, and OpenTofu outputs.                                                                                                      |
+| `lanes.bundleSize()` / `bundle-size`                  | required `budgets` map; values are bytes or strings such as `"250 kB"`                            | source, ui, dependency                               | none                                                                            | Measures raw and gzip bytes under each target's `dist`, `build`, `lib`, or `.output` directory and fails over budget.                                                                                                                        |
+| `lanes.versionDrift()` / `version-drift`              | none                                                                                              | dependency                                           | none                                                                            | Reads pnpm workspace manifests only, compares dependency ranges with the root catalog, and reports duplicate majors.                                                                                                                         |
+| `lanes.migrationSafety()` / `migration-safety`        | required migration `dir`                                                                          | sql                                                  | none                                                                            | Rejects `DROP`, `ALTER ... TYPE`, and new `NOT NULL` constraints unless the previous line starts with `-- expand-contract:`.                                                                                                                 |
+| `lanes.hygiene()` / `hygiene`                         | `commitScriptPath`, default `scripts/gates/commit.sh`; `configPath`, default `gate.config.ts`     | always                                               | none                                                                            | Rejects missing root script aliases, no-op and placeholder scripts, `passWithNoTests`, live dev/deploy/release commands, and mutating gate commands.                                                                                         |
+| `lanes.i18n()` / `i18n`                               | `catalogGlob`, `sourceLocale`, `allowlistPath`                                                    | changed catalogs or source files; always in `--full` | none                                                                            | Checks message parity, ICU arguments, Arabic plural categories, and untranslated strings.                                                                                                                                                    |
+| `lanes.custom()` / configured id                      | required `id`, `title`, `triggers`, and `run`; optional `exclusive`                               | supplied category list or trigger function           | none                                                                            | Runs a shell command string or a typed `LaneRunner` as a project escape hatch.                                                                                                                                                               |
+
+Configure the env schema path in `classifiers.env`; otherwise a `.ts` schema change is only a source change and does not select `env-contract`. Configure a migration directory pattern in `classifiers.sql` when it differs from the default `**/migrations/**/*.sql`.
+
+The `i18n` lane reads Lingui `.po` catalogs from locale-named parent directories.
+Defaults match the template: `apps/web/src/locales/*/messages.po`, source locale `en`, and `gates/i18n-allowlist.json`.
+Each non-source catalog must have the same message IDs as the source catalog;
+ICU argument names and types must match, and Arabic plural messages must include
+the CLDR cardinal categories `zero`, `one`, `two`, `few`, `many`, and `other`.
+`gates/i18n-allowlist.json` may contain reviewed `{ "locale", "id", "context?", "reason" }`
+entries for intentional empty or source-identical strings. Exceptions do not
+skip catalog parity or ICU checks, and unused entries fail as stale.
+
+## Baselines
+
+JSON ratchets use project-owned data shaped as follows:
+
+```json
+{
+  "count": 2,
+  "entries": [],
+  "acceptedAt": "2026-08-23T00:00:00.000Z",
+  "message": "Reviewed debt"
+}
+```
+
+OSV and tool-owned Fallow files keep their native entry shapes. CSpell uses one normalized issue per line and stores acceptance messages as `# accepted ...` comments. Native tool formats that cannot hold q9gate metadata use an adjacent `.q9gate-acceptance.json` file. `accept-baseline` is the package writer for approval metadata; it refuses lanes without a declared baseline.
+
+The pure helpers `evaluateBaselineCount()` and `evaluateBaselineEntries()` implement count and entry ratchets for custom lanes.
+
+## Report schema v1
+
+`gateReportSchema` is a Zod runtime schema. `validateGateReport(input)` returns a typed report or throws, while `isGateReport(input)` is a type guard. Summary counts must equal the lane statuses.
+
+```json
+{
+  "schemaVersion": 1,
+  "repo": "q9stack",
+  "ref": "abc123",
+  "scope": "branch",
+  "base": "origin/main",
+  "startedAt": "2026-08-23T00:00:00.000Z",
+  "durationMs": 1250,
+  "concurrency": 4,
+  "lanes": [
+    {
+      "id": "fallow",
+      "status": "passed",
+      "reason": "12 source files changed",
+      "durationMs": 320,
+      "metrics": {
+        "deadCode": 3,
+        "dupes": 1,
+        "complexityOverBaseline": 0
+      },
+      "baseline": { "before": 14, "after": 14 },
+      "findings": [
+        {
+          "file": "packages/core/src/old.ts",
+          "line": 1,
+          "rule": "dead-code",
+          "message": "Unused export"
+        }
+      ]
+    }
+  ],
+  "summary": { "passed": 1, "failed": 0, "skipped": 0 }
+}
+```
+
+Counting lanes emit stable metric names for dead code, duplicates, complexity, dependency issues, vulnerabilities, spelling, missing tests, env drift, bundle bytes, version drift, migration safety, infrastructure stacks, skipped optional tools, and checked files.
+
+## Library API
+
+The root export includes `defineGate`, the `lanes` factory object, all named lane factories and option types, gate config and execution types, the report schema and types, classification and planning helpers, baseline ratchets, env-contract diffing, and migration scanning. Adapters for Git, processes, the filesystem, and terminal output remain internal.

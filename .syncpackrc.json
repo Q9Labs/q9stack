@@ -1,0 +1,10 @@
+{
+  "$schema": "https://syncpack.dev/schema.json",
+  "versionGroups": [
+    {
+      "label": "peerDependencies declare intentionally wide ranges, not catalog pins",
+      "dependencyTypes": ["peer"],
+      "isIgnored": true
+    }
+  ]
+}

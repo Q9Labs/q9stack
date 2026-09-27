@@ -1,0 +1,10 @@
+# Project gitleaks config: default ruleset plus reviewed false positives.
+title = "q9stack"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Prose listing UI states ('auth screens: default/invalid/submitting') trips generic-api-key."
+regexTarget = "match"
+regexes = ['''auth screens: default/invalid/submitting''']

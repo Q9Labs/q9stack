@@ -1,0 +1,143 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: __APP_NAME__\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.description"
+msgstr "نقطة بداية صغيرة وسهلة الاستخدام ومدعومة من Convex."
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.admin"
+msgstr "مساحة المشرف"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.archived"
+msgstr "مؤرشف"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.changed"
+msgstr "تم التغيير"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.title"
+msgstr "سجل التغييرات"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.description"
+msgstr "التغييرات في الإصدارات الأخيرة، من الأحدث إلى الأقدم."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.badge"
+msgstr "بيانات Convex التجريبية"
+
+#. js-lingui-explicit-id
+#: src/routes/sign-up.tsx
+msgid "auth.signup.title"
+msgstr "إنشاء حساب"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.account"
+msgstr "الحساب الحالي"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.fixed"
+msgstr "تم الإصلاح"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.loading"
+msgstr "جارٍ تحميل العينات…"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.member"
+msgstr "مساحة العضو"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.added"
+msgstr "جديد"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.unseen"
+msgstr "تحديثات جديدة"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.empty"
+msgstr "لا توجد ملاحظات إصدار بعد. ستظهر الميزات الجديدة والإصلاحات هنا بعد الإصدار التالي."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.empty"
+msgstr "لا توجد عينات بعد."
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.samples.published"
+msgstr "منشور"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.title"
+msgstr "__APP_NAME__"
+
+#. js-lingui-explicit-id
+#: src/components/localized-shell.tsx
+msgid "shell.viewer"
+msgstr "مساحة للقراءة فقط"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.removed"
+msgstr "تمت الإزالة"
+
+#. js-lingui-explicit-id
+#: src/routes/forgot-password.tsx
+msgid "auth.forgot.title"
+msgstr "إعادة تعيين كلمة المرور"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.type.security"
+msgstr "الأمان"
+
+#. js-lingui-explicit-id
+#: src/routes/sign-in.tsx
+msgid "auth.login.title"
+msgstr "تسجيل الدخول"
+
+#. js-lingui-explicit-id
+#: src/components/locale-switcher.tsx
+msgid "shell.language"
+msgstr "تغيير اللغة"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.version"
+msgstr "الإصدار {version}"
+
+#. js-lingui-explicit-id
+#: src/components/changelog-menu-item.tsx
+msgid "changelog.button"
+msgstr "عرض ملاحظات الإصدار"

@@ -1,0 +1,49 @@
+{
+  "name": "@q9labsai/config-depcruise",
+  "version": "0.1.0",
+  "description": "Hexagonal dependency-cruiser rules for q9labs projects",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/config-depcruise#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/config-depcruise"
+  },
+  "files": [
+    "dist",
+    ".dependency-cruiser.cjs",
+    "README.md",
+    "package.json"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dependency-cruiser": "catalog:"
+  },
+  "devDependencies": {
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -1,0 +1,13 @@
+import Preview from "@q9labsai/ui/preview";
+
+// A right-to-left reading direction is prose, not a Tailwind utility.
+
+export const physicalDirections = (
+  <div className="ml-4 text-left rounded-l-lg border-r-2" />
+);
+
+export const logicalDirections = (
+  <div className="ms-4 text-start rounded-s-lg border-s-2" />
+);
+
+export const previewPage = <Preview />;

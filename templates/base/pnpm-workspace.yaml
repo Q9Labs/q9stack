@@ -1,0 +1,67 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  workerd: true
+
+catalog:
+  "@faker-js/faker": 10.6.0
+  "@hugeicons/core-free-icons": 4.3.5
+  "@lingui/cli": 6.8.0
+  "@lingui/core": 6.8.0
+  "@lingui/format-po": 6.8.0
+  "@lingui/react": 6.8.0
+  "@lingui/vite-plugin": 6.8.0
+  "@rolldown/plugin-babel": 0.2.4
+  react: 19.3.0
+  react-doctor: 0.9.14
+  react-dom: 19.3.0
+  effect: 3.22.2
+  "@tanstack/react-router": 1.170.39
+  "@tanstack/react-start": 1.168.58
+  tailwindcss: 4.3.3
+  "@tailwindcss/vite": 4.3.3
+  "@fontsource-variable/geist": 5.3.0
+  "@fontsource-variable/geist-mono": 5.3.0
+  "@types/node": 26.6.2
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  vite: 8.3.1
+  "@vitejs/plugin-react": 6.1.1
+  "@cloudflare/vite-plugin": 1.59.0
+  "@cloudflare/workers-types": 5.20260924.1
+  wrangler: 4.138.0
+  vitest: 5.0.1
+  "@playwright/test": 1.63.0
+  fast-check: 4.10.2
+  "@stryker-mutator/core": 10.0.0
+  "@stryker-mutator/vitest-runner": 10.0.0
+  turbo: 2.11.3
+  tsx: 4.23.15
+  tsdown: 0.23.0
+  oxlint: 1.85.0
+  oxlint-tsgolint: 7.0.2003
+  oxfmt: 0.70.0
+  fallow: 3.28.0
+  dependency-cruiser: 18.4.0
+  syncpack: 15.3.3
+  cspell: 10.3.3
+  lefthook: 2.1.14
+  typescript: 7.0.2
+  "@q9labsai/config-depcruise": ^0.1.0
+  "@q9labsai/config-oxlint": ^0.1.0
+  "@q9labsai/config-semgrep": ^0.2.0
+  "@q9labsai/config-tsconfig": ^0.1.0
+  "@q9labsai/cli": ^0.2.0
+  "@q9labsai/env": ^0.1.0
+  "@q9labsai/gates": ^0.2.0
+  "@q9labsai/ui": ^0.1.0
+
+overrides:
+  # GHSA-q8mj-m7cp-5q26: qs < 6.15.2 DoS, pulled via stryker's typed-rest-client.
+  qs: 6.15.3
+  # Keep the Effect type identity shared with the currently published q9 packages.
+  effect: "catalog:"

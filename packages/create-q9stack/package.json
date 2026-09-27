@@ -1,0 +1,55 @@
+{
+  "name": "create-q9stack",
+  "version": "0.1.0",
+  "description": "Scaffold q9labs applications from the q9stack templates",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/create-q9stack#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/create-q9stack"
+  },
+  "bin": {
+    "create-q9stack": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/copy-templates.mjs --allow-missing && tsdown",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scripts/tsconfig.json && tsc --noEmit -p test/tsconfig.json",
+    "test": "vitest run",
+    "templates:copy": "node scripts/copy-templates.mjs",
+    "prepack": "node scripts/copy-templates.mjs"
+  },
+  "dependencies": {
+    "cac": "catalog:",
+    "prompts": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/prompts": "catalog:",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
