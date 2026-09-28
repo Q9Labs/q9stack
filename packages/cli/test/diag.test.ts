@@ -16,6 +16,9 @@ const partialCode = "00000000000000000000000000000004";
 const heuristicCode = "00000000000000000000000000000005";
 const hundredErrorsCode = "00000000000000000000000000000006";
 const slowLogsCode = "00000000000000000000000000000007";
+const journeyCode = "00000000000000000000000000000008";
+const unrelatedCode = "00000000000000000000000000000009";
+const journey = "0000000000000000000000000000000a";
 let root: string;
 
 function cli(...args: string[]) {
@@ -53,14 +56,15 @@ async function fakeConvex() {
 const fs = require('node:fs');
 const code = JSON.parse(process.argv[4] || '{}').traceId;
 if (process.argv[2] === 'logs') {
-  console.log(JSON.stringify({requestId:'request_12345678',identifier:'convex.query',executionTimestamp:1780000000,executionTime:0.04,success:false,logLines:[{messages:['secret private cause']}]}));
+  console.log(JSON.stringify({requestId:'request_12345678',identifier:'convex.query',executionTimestamp:1780000000,executionTime:0.04,success:false,logLines:[{messages:['secret private cause']}]}) + '\\n' + JSON.stringify({kind:'Console',requestId:'f3e600482491b74b',identifier:'tasks:createTask',timestamp:1780000000.4,logLines:['convex.function.failed ' + (fs.readFileSync('.last-code', 'utf8') === '${code}' ? '${code}' : 'unrelated')]}) + '\\n' + JSON.stringify({kind:'Completion',requestId:'f3e600482491b74b',identifier:'tasks:createTask',executionTimestamp:1780000000.5,executionTime:0.01,success:null,error:'Uncaught private failure',logLines:[]}));
   if (fs.readFileSync('.last-code', 'utf8') === '${slowLogsCode}') setInterval(() => {}, 1000);
   else process.exit(0);
 } else {
 if (process.argv[2] !== 'run') process.exit(1);
 fs.writeFileSync('.last-code', code);
 const events = code === '${missing}' || code === '${expired}' || code === '00000000000000000000000000000001' ? [] : code === '${hundredErrorsCode}' ? Array.from({length:100}, (_,i) => ({version:1,traceId:code,spanId:(i+1).toString(16).padStart(16,'0'),eventId:'error_'+i,occurredAt:1780000000000+i,source:'browser',kind:'error',name:'app.error',status:'error',level:'error'})) : [{version:1,traceId:code,spanId:'1234567890abcdef',eventId:'one',occurredAt:1780000000000,source:'browser',kind:'request',name:'convex.query',status:'error',level:'error',requestId:code === '${partialCode}' || code === '${heuristicCode}' ? 'request_other123' : 'request_12345678',attributes:{function:code === '${partialCode}' ? 'other.function' : 'convex.query',replay_session_id:'opaqueReplaySession12'}}];
-console.log(JSON.stringify({events,expired:code === '${expired}'}));
+const linked = code === '${journeyCode}' ? [{version:1,traceId:'${journey}',spanId:'000000000000000a',eventId:'nav',occurredAt:1779999999000,source:'browser',kind:'navigation',name:'app.navigate',status:'ok',level:'info'},{version:1,traceId:code,spanId:'000000000000000b',eventId:'fail',occurredAt:1780000000000,source:'browser',kind:'error',name:'app.error',status:'error',level:'error',journeyTraceId:'${journey}'}] : code === '${unrelatedCode}' ? [{version:1,traceId:'${journey}',spanId:'000000000000000a',eventId:'nav',occurredAt:1779999999000,source:'browser',kind:'navigation',name:'app.navigate',status:'ok',level:'info'}] : undefined;
+console.log(JSON.stringify({events:linked ?? events,expired:code === '${expired}'}));
 }
 `,
   );
@@ -105,7 +109,13 @@ describe("q9 diag", () => {
       completeness: "complete",
       truncated: false,
     });
-    expect(foundBrief.serverSpans[0]?.correlation).toBe("request_id");
+    expect(
+      foundBrief.serverSpans.map((span) => [span.name, span.status, span.correlation]),
+    ).toEqual([
+      ["convex.query", "error", "request_id"],
+      ["tasks.createTask", "error", "trace_id"],
+    ]);
+    expect(found.stdout).not.toContain("Uncaught private failure");
     expect(foundBrief.links).toEqual([
       { idClass: "posthog.session", value: "opaqueReplaySession12" },
     ]);
@@ -123,9 +133,17 @@ describe("q9 diag", () => {
     expect(exactlyHundred.errors).toHaveLength(100);
     expect(exactlyHundred.truncated).toBe(false);
     expect(exactlyHundred.completeness).toBe("complete");
-    const boundedLogs = brief(slowLogsCode);
-    expect(boundedLogs.truncated).toBe(true);
-    expect(boundedLogs.completeness).toBe("partial");
+    const streamingLogs = brief(slowLogsCode);
+    expect(streamingLogs.truncated).toBe(false);
+    expect(streamingLogs.completeness).toBe("complete");
+  }, 20_000);
+
+  it("accepts journey events linked to the code and rejects unrelated ones", async () => {
+    await fakeConvex();
+    const linked = brief(journeyCode, "--no-logs");
+    expect(linked.journeyTraceId).toBe(journey);
+    expect(linked.events.map((event) => event.eventId)).toEqual(["nav", "fail"]);
+    expect(cli("trace", unrelatedCode, "--no-logs").status).toBe(4);
   });
 
   it("reads and validates a command brief", async () => {

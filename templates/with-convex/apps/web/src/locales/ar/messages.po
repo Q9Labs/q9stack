@@ -48,6 +48,16 @@ msgid "home.badge"
 msgstr "بيانات Convex التجريبية"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.copied"
+msgstr "تم النسخ"
+
+#. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.copy"
+msgstr "نسخ الرمز"
+
+#. js-lingui-explicit-id
 #: src/routes/sign-up.tsx
 msgid "auth.signup.title"
 msgstr "إنشاء حساب"
@@ -56,6 +66,11 @@ msgstr "إنشاء حساب"
 #: src/components/localized-shell.tsx
 msgid "shell.account"
 msgstr "الحساب الحالي"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.title"
+msgstr "__APP_NAME__"
 
 #. js-lingui-explicit-id
 #: src/components/changelog-menu-item.tsx
@@ -93,14 +108,14 @@ msgid "home.samples.empty"
 msgstr "لا توجد عينات بعد."
 
 #. js-lingui-explicit-id
-#: src/routes/index.tsx
-msgid "home.samples.published"
-msgstr "منشور"
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.without_code"
+msgstr "يرجى المحاولة مرة أخرى. رمز التشخيص غير متاح الآن."
 
 #. js-lingui-explicit-id
 #: src/routes/index.tsx
-msgid "home.title"
-msgstr "__APP_NAME__"
+msgid "home.samples.published"
+msgstr "منشور"
 
 #. js-lingui-explicit-id
 #: src/components/localized-shell.tsx
@@ -123,14 +138,34 @@ msgid "changelog.type.security"
 msgstr "الأمان"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.with_code"
+msgstr "شارك رمز التشخيص هذا مع فريق الدعم حتى نتمكن من التحقيق."
+
+#. js-lingui-explicit-id
 #: src/routes/sign-in.tsx
 msgid "auth.login.title"
 msgstr "تسجيل الدخول"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.title"
+msgstr "حدث خطأ ما"
+
+#. js-lingui-explicit-id
 #: src/components/locale-switcher.tsx
 msgid "shell.language"
 msgstr "تغيير اللغة"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "diagnostics.demo.trigger"
+msgstr "اختبار الإبلاغ عن الأخطاء"
+
+#. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.retry"
+msgstr "حاول مرة أخرى"
 
 #. js-lingui-explicit-id
 #: src/components/changelog-menu-item.tsx

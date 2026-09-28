@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/ai",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Effect-wrapped OpenRouter and Vercel AI SDK primitives for q9labs applications",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/ai#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

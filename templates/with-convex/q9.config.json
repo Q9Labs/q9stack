@@ -1,0 +1,7 @@
+{
+  "diag": {
+    "adapter": "convex",
+    "convexDir": ".",
+    "lookup": "diagnostics/lookup:trace"
+  }
+}

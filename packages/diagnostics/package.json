@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/diagnostics",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Safe, versioned diagnostic trace contracts for browsers and Node",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/diagnostics#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

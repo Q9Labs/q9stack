@@ -14,7 +14,7 @@ function isGateLane(value: unknown): value is GateLane {
     "title" in value &&
     typeof value.title === "string" &&
     "triggers" in value &&
-    typeof value.triggers === "function" &&
+    (typeof value.triggers === "function" || value.triggers === "always") &&
     "run" in value &&
     typeof value.run === "function"
   );
@@ -24,10 +24,19 @@ function isGateConfig(value: unknown): value is GateConfig {
   if (typeof value !== "object" || value === null) {
     return false;
   }
+  const hasValidTargets =
+    !("targets" in value) ||
+    (typeof value.targets === "object" &&
+      value.targets !== null &&
+      !Array.isArray(value.targets) &&
+      Object.values(value.targets).every(
+        (roots) => Array.isArray(roots) && roots.every((root) => typeof root === "string"),
+      ));
   return (
     "workspaceRoots" in value &&
     Array.isArray(value.workspaceRoots) &&
     value.workspaceRoots.every((root) => typeof root === "string") &&
+    hasValidTargets &&
     "lanes" in value &&
     Array.isArray(value.lanes) &&
     value.lanes.every(isGateLane)

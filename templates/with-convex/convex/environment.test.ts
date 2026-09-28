@@ -11,7 +11,7 @@ describe("Convex authentication environment", () => {
       }),
     ).toEqual({
       betterAuthSecret: "development-secret",
-      siteUrl: "http://127.0.0.1:3211/",
+      siteUrl: "http://127.0.0.1:3211",
     });
   });
 

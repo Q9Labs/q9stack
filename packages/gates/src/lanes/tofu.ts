@@ -40,12 +40,13 @@ async function stackDirectories(repoRoot: string): Promise<readonly StackDirecto
 async function runStackValidation(
   context: LaneContext,
   stacks: readonly StackDirectory[],
+  command: string,
 ): Promise<readonly LaneFinding[]> {
   const results = await Promise.all(
     stacks.map(async (stack) => {
       // `validate` needs modules and providers resolved; `-backend=false` keeps init local-only.
       const init = await context.exec(
-        "tofu",
+        command,
         ["-chdir=" + stack.path, "init", "-backend=false", "-input=false"],
         { cwd: context.repoRoot },
       );
@@ -58,7 +59,7 @@ async function runStackValidation(
           ),
         ];
       }
-      const result = await context.exec("tofu", ["-chdir=" + stack.path, "validate"], {
+      const result = await context.exec(command, ["-chdir=" + stack.path, "validate"], {
         cwd: context.repoRoot,
       });
       return result.failed
@@ -75,8 +76,11 @@ async function runStackValidation(
   return results.flat();
 }
 
-async function runFormatCheck(context: LaneContext): Promise<readonly LaneFinding[]> {
-  const result = await context.exec("tofu", ["fmt", "-check", "-recursive", "infra"], {
+async function runFormatCheck(
+  context: LaneContext,
+  command: string,
+): Promise<readonly LaneFinding[]> {
+  const result = await context.exec(command, ["fmt", "-check", "-recursive", "infra"], {
     cwd: context.repoRoot,
   });
   return result.failed
@@ -109,7 +113,7 @@ async function runTflint(
   }
   const results = await Promise.all(
     stacks.map(async (stack) => {
-      const result = await context.exec("tflint", ["--chdir", stack.path], {
+      const result = await context.exec(availability.command, ["--chdir", stack.path], {
         cwd: context.repoRoot,
       });
       return result.failed
@@ -136,7 +140,9 @@ async function runTrivy(context: LaneContext): Promise<OptionalToolResult> {
       toolsSkipped: 1,
     };
   }
-  const result = await context.exec("trivy", ["config", "infra"], { cwd: context.repoRoot });
+  const result = await context.exec(availability.command, ["config", "infra"], {
+    cwd: context.repoRoot,
+  });
   return {
     findings: result.failed
       ? [finding("infra", "trivy-config", result.stderr || result.stdout || "trivy config failed.")]
@@ -165,8 +171,8 @@ async function runTofu(
     };
   }
 
-  const formatFindings = await runFormatCheck(context);
-  const validationFindings = await runStackValidation(context, stacks);
+  const formatFindings = await runFormatCheck(context, openTofu.command);
+  const validationFindings = await runStackValidation(context, stacks, openTofu.command);
   const tflint = await runTflint(context, stacks);
   const trivy = await runTrivy(context);
   const findings = [

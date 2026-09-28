@@ -168,13 +168,16 @@ function deploymentArgs(options: Options): string[] {
   return [];
 }
 
+// Convex prints `null` for absent fields, e.g. `"success": null, "error": null`.
 const logSchema = z.looseObject({
-  requestId: z.string().optional(),
-  identifier: z.string().optional(),
-  executionTimestamp: z.number().optional(),
-  timestamp: z.number().optional(),
-  executionTime: z.number().optional(),
-  success: z.boolean().optional(),
+  kind: z.string().nullish(),
+  requestId: z.string().nullish(),
+  identifier: z.string().nullish(),
+  executionTimestamp: z.number().nullish(),
+  timestamp: z.number().nullish(),
+  executionTime: z.number().nullish(),
+  success: z.boolean().nullish(),
+  error: z.unknown().optional(),
 });
 type LogRead = { logs: z.infer<typeof logSchema>[]; truncated: boolean };
 
@@ -188,16 +191,18 @@ async function readLogs(binary: string, cwd: string, target: string[]): Promise<
       cwd,
       stdio: ["ignore", "pipe", "ignore"],
     });
-    const stop = () => {
-      truncated = true;
+    // `convex logs` prints its history and then keeps streaming, so the timer is
+    // the normal end of a read. Only the byte and line caps truncate evidence.
+    const stop = (capped: boolean) => {
+      truncated ||= capped;
       child.kill("SIGTERM");
     };
-    const timer = setTimeout(stop, 2_500);
+    const timer = setTimeout(() => stop(false), 2_500);
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
       bytes += Buffer.byteLength(chunk);
       if (bytes > 1_000_000) {
-        stop();
+        stop(true);
         return;
       }
       buffer += chunk;
@@ -205,7 +210,7 @@ async function readLogs(binary: string, cwd: string, target: string[]): Promise<
       buffer = parts.pop() ?? "";
       for (const part of parts) {
         if (lines.length >= 500) {
-          stop();
+          stop(true);
           break;
         }
         try {
@@ -231,9 +236,11 @@ async function readLogs(binary: string, cwd: string, target: string[]): Promise<
   });
 }
 
-function safeName(name: string | undefined): string | undefined {
+function safeName(name: string | null | undefined): string | undefined {
   const dotted = name?.replaceAll(/[/:]/g, ".");
-  return dotted && /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(dotted) && dotted.length <= 96
+  return dotted &&
+    /^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(dotted) &&
+    dotted.length <= 96
     ? dotted
     : undefined;
 }
@@ -243,9 +250,12 @@ function correlateLog(
   events: DiagnosticEvent[],
   requests: Map<string | undefined, DiagnosticEvent>,
   millis: number,
-): { parent: DiagnosticEvent; correlation: "request_id" | "heuristic" } | undefined {
+  traced: Map<string, DiagnosticEvent>,
+): { parent: DiagnosticEvent; correlation: "request_id" | "trace_id" | "heuristic" } | undefined {
   const exact = log.requestId ? requests.get(log.requestId) : undefined;
   if (exact) return { parent: exact, correlation: "request_id" };
+  const linked = log.requestId ? traced.get(log.requestId) : undefined;
+  if (linked) return { parent: linked, correlation: "trace_id" };
   const heuristic = events.find(
     (event) =>
       event.attributes?.function === log.identifier && Math.abs(event.occurredAt - millis) <= 5_000,
@@ -253,12 +263,21 @@ function correlateLog(
   return heuristic ? { parent: heuristic, correlation: "heuristic" } : undefined;
 }
 
-function safeLogRequestId(value: string | undefined): string | undefined {
+function safeLogRequestId(value: string | null | undefined): string | undefined {
   return value && /^[a-zA-Z0-9_-]{1,128}$/.test(value) ? value : undefined;
 }
 
-function logDurationMs(value: number | undefined): number | undefined {
-  return value !== undefined && value >= 0 ? Math.round(value * 1000) : undefined;
+function logDurationMs(value: number | null | undefined): number | undefined {
+  return value !== undefined && value !== null && value >= 0 ? Math.round(value * 1000) : undefined;
+}
+
+function logMillis(log: z.infer<typeof logSchema>): number {
+  return Math.round((log.executionTimestamp ?? log.timestamp ?? 0) * 1000);
+}
+
+function logStatus(log: z.infer<typeof logSchema>): "ok" | "error" {
+  const failed = log.success === false || (log.error !== undefined && log.error !== null);
+  return failed ? "error" : "ok";
 }
 
 function logToServerSpan(
@@ -266,13 +285,13 @@ function logToServerSpan(
   index: number,
   events: DiagnosticEvent[],
   requests: Map<string | undefined, DiagnosticEvent>,
+  traced: Map<string, DiagnosticEvent>,
 ): DiagnosticTraceBrief["serverSpans"][number] | undefined {
-  const millis = Math.round((log.executionTimestamp ?? log.timestamp ?? 0) * 1000);
-  const match = correlateLog(log, events, requests, millis);
+  const millis = logMillis(log);
+  const match = correlateLog(log, events, requests, millis, traced);
   const name = safeName(log.identifier);
-  if (!match || !name) return undefined;
   const spanId = (index + 1).toString(16).padStart(16, "0");
-  if (!spanIdSchema.safeParse(spanId).success) return undefined;
+  if (!match || !name || !spanIdSchema.safeParse(spanId).success) return undefined;
   return {
     traceId: match.parent.traceId,
     spanId,
@@ -281,7 +300,7 @@ function logToServerSpan(
     name,
     occurredAt: millis,
     durationMs: logDurationMs(log.executionTime),
-    status: log.success === false ? "error" : "ok",
+    status: logStatus(log),
     correlation: match.correlation,
   };
 }
@@ -290,10 +309,29 @@ function toServerSpans(events: DiagnosticEvent[], logs: z.infer<typeof logSchema
   const requests = new Map(
     events.filter((event) => event.requestId).map((event) => [event.requestId, event]),
   );
+  const traced = traceLinkedRequests(events, logs);
+  // `Console` entries carry log text; the `Completion` entry is the execution itself.
   return logs.flatMap((log, index) => {
-    const span = logToServerSpan(log, index, events, requests);
+    if (log.kind && log.kind !== "Completion") return [];
+    const span = logToServerSpan(log, index, events, requests, traced);
     return span ? [span] : [];
   });
+}
+
+// A server function that logs the trace ID (e.g. `convex.function.failed`) links its
+// request, whichever log entry of that request carries the text.
+function traceLinkedRequests(
+  events: DiagnosticEvent[],
+  logs: z.infer<typeof logSchema>[],
+): Map<string, DiagnosticEvent> {
+  const traced = new Map<string, DiagnosticEvent>();
+  for (const log of logs) {
+    if (!log.requestId || traced.has(log.requestId)) continue;
+    const serialized = JSON.stringify(log);
+    const event = events.find((candidate) => serialized.includes(candidate.traceId));
+    if (event) traced.set(log.requestId, event);
+  }
+  return traced;
 }
 
 function briefCompleteness(
@@ -514,7 +552,14 @@ function parseLookup(stdout: string, code: string): z.infer<typeof lookupSchema>
   } catch {
     throw new DiagError("Convex lookup returned invalid DiagnosticEvent/v1 data.", 4);
   }
-  if (lookup.events.some((event) => event.traceId !== code && event.journeyTraceId !== code))
+  const journeys = new Set(
+    lookup.events.flatMap((event) =>
+      event.traceId === code && event.journeyTraceId ? [event.journeyTraceId] : [],
+    ),
+  );
+  const related = (event: DiagnosticEvent) =>
+    event.traceId === code || event.journeyTraceId === code || journeys.has(event.traceId);
+  if (!lookup.events.every(related))
     throw new DiagError("Convex lookup returned unrelated events.", 4);
   return lookup;
 }

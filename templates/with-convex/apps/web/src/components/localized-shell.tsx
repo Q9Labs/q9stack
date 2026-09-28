@@ -1,6 +1,6 @@
+import type { AuthAccount, DevAccount } from "@__APP_SLUG__/auth";
 import { DashboardSquare01Icon, Shield01Icon, ViewIcon } from "@hugeicons/core-free-icons";
 import { useLingui } from "@lingui/react/macro";
-import type { AuthAccount, DevAccount } from "@__APP_SLUG__/auth";
 import {
   AppShell,
   Sidebar,
@@ -25,6 +25,8 @@ import { runtimeAppEnvironment } from "../env.js";
 import { useLocale } from "../i18n/locale-provider.js";
 import { auth } from "../lib/auth-client.js";
 import { ChangelogMenuItem } from "./changelog-menu-item.js";
+import { DiagnosticBoundary } from "./diagnostic-boundary.js";
+import { DiagnosticsBootstrap } from "./diagnostics-bootstrap.js";
 import { LocaleSwitcher } from "./locale-switcher.js";
 
 interface ShellAccount extends AuthAccount {
@@ -118,6 +120,7 @@ export function LocalizedShell() {
 
   return (
     <ThemeProvider defaultProductTheme="__PRODUCT__" dir={direction}>
+      <DiagnosticsBootstrap />
       <AppShell
         navigationLabel={currentAccountLabel}
         sidebar={
@@ -156,7 +159,9 @@ export function LocalizedShell() {
         }
       >
         <div className="min-w-0 flex-1 overflow-y-auto">
-          <Outlet />
+          <DiagnosticBoundary>
+            <Outlet />
+          </DiagnosticBoundary>
         </div>
       </AppShell>
       {!isProduction ? (

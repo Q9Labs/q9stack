@@ -35,6 +35,7 @@ export type {
   LaneRunner,
   LaneStatus,
   LaneTrigger,
+  LaneTriggerSpec,
   PlannedLane,
   TriggerContext,
 } from "./core/types.js";

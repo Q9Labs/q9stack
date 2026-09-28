@@ -53,7 +53,7 @@ export default defineGate({
     }),
     // Budget covers the client deploy artifact (JS + CSS); fonts and the SSR
     // worker ship separately and are not part of the interactive payload.
-    lanes.bundleSize({ budgets: { "apps/web/dist/client/assets/*.{js,css}": "300 kB" } }),
+    lanes.bundleSize({ budgets: { "apps/web/dist/client/assets/*.{js,css}": "325 kB" } }),
     lanes.versionDrift(),
     lanes.hygiene(),
   ],

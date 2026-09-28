@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { classify } from "../../src/core/classify.js";
 import { plan, selectPlanLanes } from "../../src/core/plan.js";
-import type { GateCategory, GateLane } from "../../src/core/types.js";
+import type { GateCategory, GateLane, TriggerContext } from "../../src/core/types.js";
 
 function lane(
   id: string,
@@ -19,6 +19,35 @@ function lane(
 }
 
 describe("plan", () => {
+  it("passes the target and unfiltered paths to custom triggers", () => {
+    const classification = classify(["apps/web/src/index.ts"]);
+    const allChangedFiles = ["apps/web/src/index.ts", "apps/mobile/package.json"];
+    const observed: TriggerContext[] = [];
+    const customLane: GateLane = {
+      ...lane("custom", false),
+      triggers: (context) => {
+        observed.push(context);
+        return "context received";
+      },
+    };
+
+    const result = plan(classification, [customLane], "branch", {
+      target: "web",
+      allChangedFiles,
+    });
+
+    expect(observed).toEqual([
+      {
+        classification,
+        changedFiles: classification.changedFiles,
+        allChangedFiles,
+        scope: "branch",
+        target: "web",
+      },
+    ]);
+    expect(result.lanes[0]).toMatchObject({ selected: true, reason: "context received" });
+  });
+
   it("runs only cspell and hygiene for documentation-only changes", () => {
     const lanes = [
       lane("typecheck", true, ["source"]),
@@ -40,6 +69,33 @@ describe("plan", () => {
     ]);
     expect(result.lanes[0]?.reason).toBe("skipped: documentation-only change");
     expect(result.lanes[2]?.reason).toBe("documentation files changed");
+  });
+
+  it("runs explicitly always-on lanes for non-empty documentation-only diffs", () => {
+    const result = plan(
+      classify(["docs/guide.md"]),
+      [{ ...lane("custom-always", false), triggers: "always" }, lane("custom-trigger", true)],
+      "branch",
+    );
+
+    expect(result.lanes.map((entry) => [entry.lane.id, entry.selected])).toEqual([
+      ["custom-always", true],
+      ["custom-trigger", false],
+    ]);
+    expect(result.lanes[0]?.reason).toBe("always required");
+  });
+
+  it("does not select an always-on trigger for an empty diff", () => {
+    const result = plan(
+      classify([]),
+      [{ ...lane("custom-always", false), triggers: "always" }],
+      "branch",
+    );
+
+    expect(result.lanes[0]).toMatchObject({
+      selected: false,
+      reason: "skipped: lane trigger did not match",
+    });
   });
 
   it("forces dependency safety lanes, typecheck, and build", () => {

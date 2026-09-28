@@ -1,23 +1,27 @@
-import { probeTool } from "../adapters/tool.js";
+import { probeTool, type DoctorLane } from "../adapters/tool.js";
 import type { LaneFinding } from "../core/report.js";
-import type { GateLane, LaneContext, LaneResult } from "../core/types.js";
+import type { LaneContext, LaneResult } from "../core/types.js";
 import { outputFindings } from "./lane-report.js";
 import { categoryTrigger } from "./trigger.js";
 
 export interface ReactDoctorOptions {
   readonly command?: string;
   readonly scanCommand?: string;
+  /** Fail when the React Scan CLI is unavailable instead of reporting an optional tool. */
+  readonly requireScanCli?: boolean;
 }
 
 const reactScanRuntimeCheck = [
-  'const scan = await import("react-scan");',
+  'import { createRequire } from "node:module";',
+  "const require = createRequire(import.meta.url);",
+  'const scan = require("react-scan");',
   'if (typeof scan.scan !== "function" || typeof scan.getReport !== "function") process.exit(1);',
-  'const lite = await import("react-scan/lite");',
+  'const lite = require("react-scan/lite");',
   'if (typeof lite.instrument !== "function") process.exit(1);',
   "const handle = lite.instrument({ enabled: false, onEvent: () => {} });",
   'if (typeof handle.stop !== "function" || typeof handle.isActive !== "function") process.exit(1);',
   "handle.stop();",
-  'const vite = await import("react-scan/react-component-name/vite");',
+  'const vite = require("react-scan/react-component-name/vite");',
   'if (typeof vite.default !== "function") process.exit(1);',
   "const plugin = vite.default();",
   'if (typeof plugin?.name !== "string" || plugin.name.length === 0) process.exit(1);',
@@ -66,7 +70,9 @@ async function runDoctorCheck(
   }
 
   try {
-    const result = await context.exec(command, doctorArgs(context), { cwd: context.repoRoot });
+    const result = await context.exec(available.command, doctorArgs(context), {
+      cwd: context.repoRoot,
+    });
     if (!result.failed) {
       return [];
     }
@@ -140,7 +146,9 @@ async function runReactDoctor(
   const findings = [...doctorFindings, ...scanFindings];
 
   const filesChecked = context.changedFiles.filter((file) => /\.tsx?$/u.test(file)).length;
-  const blocking = findings.some((item) => item.rule !== "optional-tool");
+  const blocking = findings.some(
+    (item) => item.rule !== "optional-tool" || options.requireScanCli === true,
+  );
   return {
     status: blocking ? "failed" : "passed",
     metrics: { filesChecked },
@@ -148,12 +156,16 @@ async function runReactDoctor(
   };
 }
 
-export function reactDoctor(options: ReactDoctorOptions = {}): GateLane {
+export function reactDoctor(options: ReactDoctorOptions = {}): DoctorLane {
   return {
     id: "react-doctor",
     title: "React Doctor and Scan",
     categories: ["ui"],
     triggers: categoryTrigger(["ui"]),
+    doctorTools: [
+      { command: options.command ?? "react-doctor", installHint: "Install React Doctor." },
+      { command: options.scanCommand ?? "react-scan", installHint: "Install React Scan." },
+    ],
     run: (context) => runReactDoctor(context, options),
   };
 }

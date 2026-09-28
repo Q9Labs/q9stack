@@ -8,19 +8,26 @@ const syncpackTool: ToolRequirement = {
   installHint: "Install syncpack with `pnpm add -D syncpack`, then rerun q9gate.",
 };
 
-async function runSyncpack(context: LaneContext): Promise<LaneResult> {
+export interface SyncpackLaneOptions {
+  readonly args?: readonly string[];
+}
+
+async function runSyncpack(
+  context: LaneContext,
+  options: SyncpackLaneOptions,
+): Promise<LaneResult> {
   return runToolCommand(context, syncpackTool, {
-    args: ["lint"],
+    args: options.args ?? ["lint"],
     emptyOutputMessage: "syncpack lint failed.",
   });
 }
 
-export function syncpack(): GateLane {
+export function syncpack(options: SyncpackLaneOptions = {}): GateLane {
   return {
     id: "syncpack",
     title: "Dependency Policy",
     categories: ["dependency"],
     triggers: categoryTrigger(["dependency"]),
-    run: runSyncpack,
+    run: (context) => runSyncpack(context, options),
   };
 }

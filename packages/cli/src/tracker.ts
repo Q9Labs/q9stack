@@ -37,19 +37,13 @@ const trackerSchema = z.strictObject({
   sizing: z.string(),
   outcomes: z.array(outcomeSchema),
 });
-const configSchema = z.strictObject({ trackerAreas: z.array(z.string().min(1)) });
+// q9.config.json is shared by q9 commands, so the tracker reads only its own key.
+const configSchema = z.looseObject({ trackerAreas: z.array(z.string().min(1)).default([]) });
 export type Tracker = z.infer<typeof trackerSchema>;
 export type Outcome = Tracker["outcomes"][number];
-export const defaultAreas = [
-  "foundation",
-  "contracts",
-  "adapters",
-  "quality",
-  "toolkit",
-  "release",
-];
+const defaultAreas = ["foundation", "contracts", "adapters", "quality", "toolkit", "release"];
 
-export class TrackerError extends Error {
+class TrackerError extends Error {
   constructor(readonly problems: string[]) {
     super(problems.join("\n"));
   }
@@ -80,6 +74,80 @@ function validDate(value: string | undefined): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+type Evidence = NonNullable<Outcome["evidence"]>[number];
+
+function validateEvidence(evidence: Evidence, label: string, problems: string[]): void {
+  if (evidence.scope !== undefined) nonempty(evidence.scope, label + ".scope", problems);
+  if (evidence.detail !== undefined) nonempty(evidence.detail, label + ".detail", problems);
+  if (evidence.kind === "prior_assessment") {
+    strings(evidence.from, label + ".from", problems);
+    for (const field of ["artifact", "revision", "environment", "date", "result"] as const) {
+      if (evidence[field] !== undefined)
+        problems.push(
+          label + "." + field + ": do not invent execution metadata for a prior assessment",
+        );
+    }
+    return;
+  }
+  nonempty(evidence.scope, label + ".scope", problems);
+  nonempty(evidence.detail, label + ".detail", problems);
+  if (evidence.from !== undefined) problems.push(label + ".from: only for prior assessments");
+  for (const field of ["artifact", "revision", "environment"] as const)
+    nonempty(evidence[field], label + "." + field, problems);
+  if (!validDate(evidence.date)) problems.push(label + ".date: expected a valid YYYY-MM-DD date");
+  if (evidence.result === undefined)
+    problems.push(label + ".result: expected pass, fail or blocked");
+}
+
+function validateSizing(item: Outcome, base: string, problems: string[]): void {
+  if (item.state !== "working") {
+    if (item.size === undefined) problems.push(base + ".size: size must be S, M, L or Unknown");
+    nonempty(item.size_reason, base + ".size_reason", problems);
+    return;
+  }
+  if (item.size !== undefined || item.size_reason !== undefined)
+    problems.push(base + ".size: working entries have no remaining work to size");
+  if (item.remaining !== undefined || item.uncertainty !== undefined)
+    problems.push(base + ".remaining: working scope cannot have unresolved work or uncertainty");
+}
+
+function validateState(item: Outcome, base: string, problems: string[]): void {
+  if (item.state !== "working" && item.priority === undefined)
+    problems.push(base + ".priority: required");
+  validateSizing(item, base, problems);
+  if (item.remaining !== undefined || ["planned", "in_progress", "blocked"].includes(item.state))
+    strings(item.remaining, base + ".remaining", problems);
+  if (item.uncertainty !== undefined || item.state === "unknown")
+    nonempty(item.uncertainty, base + ".uncertainty", problems);
+  if (item.blocked_by !== undefined || item.state === "blocked")
+    nonempty(item.blocked_by, base + ".blocked_by", problems);
+  if (item.state !== "blocked" && item.blocked_by !== undefined)
+    problems.push(base + ".blocked_by: requires blocked state");
+}
+
+function validateOutcome(
+  item: Outcome,
+  base: string,
+  areas: string[],
+  ids: Set<string>,
+  problems: string[],
+): void {
+  nonempty(item.id, base + ".id", problems);
+  if (!/^[a-z][a-z0-9_.-]+$/.test(item.id)) problems.push(base + ".id: invalid ID");
+  if (ids.has(item.id)) problems.push(base + ".id: duplicate outcome ID");
+  ids.add(item.id);
+  nonempty(item.title, base + ".title", problems);
+  nonempty(item.summary, base + ".summary", problems);
+  if (!areas.includes(item.area)) problems.push(base + ".area: unknown area " + item.area);
+  validateState(item, base, problems);
+  if (item.theory !== undefined) nonempty(item.theory, base + ".theory", problems);
+  strings(item.code, base + ".code", problems, false);
+  if (item.evidence !== undefined && !item.evidence.length)
+    problems.push(base + ".evidence: expected a non-empty list");
+  for (const [index, evidence] of (item.evidence ?? []).entries())
+    validateEvidence(evidence, base + ".evidence[" + index + "]", problems);
+}
+
 export function validateTracker(input: unknown, additionalAreas: string[] = []): Tracker {
   const parsed = trackerSchema.safeParse(input);
   if (!parsed.success) {
@@ -95,67 +163,10 @@ export function validateTracker(input: unknown, additionalAreas: string[] = []):
   nonempty(tracker.principle, "principle", problems);
   nonempty(tracker.sizing, "sizing", problems);
   if (!tracker.outcomes.length) problems.push("outcomes: expected a non-empty list");
+  const areas = [...defaultAreas, ...additionalAreas];
   const ids = new Set<string>();
-  for (const [index, item] of tracker.outcomes.entries()) {
-    const base = "outcomes[" + index + "]";
-    nonempty(item.id, base + ".id", problems);
-    if (!/^[a-z][a-z0-9_.-]+$/.test(item.id)) problems.push(base + ".id: invalid ID");
-    if (ids.has(item.id)) problems.push(base + ".id: duplicate outcome ID");
-    ids.add(item.id);
-    nonempty(item.title, base + ".title", problems);
-    nonempty(item.summary, base + ".summary", problems);
-    if (![...defaultAreas, ...additionalAreas].includes(item.area))
-      problems.push(base + ".area: unknown area " + item.area);
-    if (item.state !== "working" && item.priority === undefined)
-      problems.push(base + ".priority: required");
-    if (item.state === "working") {
-      if (item.size !== undefined || item.size_reason !== undefined)
-        problems.push(base + ".size: working entries have no remaining work to size");
-      if (item.remaining !== undefined || item.uncertainty !== undefined)
-        problems.push(
-          base + ".remaining: working scope cannot have unresolved work or uncertainty",
-        );
-    } else {
-      if (item.size === undefined) problems.push(base + ".size: size must be S, M, L or Unknown");
-      nonempty(item.size_reason, base + ".size_reason", problems);
-    }
-    if (item.remaining !== undefined || ["planned", "in_progress", "blocked"].includes(item.state))
-      strings(item.remaining, base + ".remaining", problems);
-    if (item.uncertainty !== undefined || item.state === "unknown")
-      nonempty(item.uncertainty, base + ".uncertainty", problems);
-    if (item.blocked_by !== undefined || item.state === "blocked")
-      nonempty(item.blocked_by, base + ".blocked_by", problems);
-    if (item.state !== "blocked" && item.blocked_by !== undefined)
-      problems.push(base + ".blocked_by: requires blocked state");
-    if (item.theory !== undefined) nonempty(item.theory, base + ".theory", problems);
-    strings(item.code, base + ".code", problems, false);
-    if (item.evidence !== undefined && !item.evidence.length)
-      problems.push(base + ".evidence: expected a non-empty list");
-    for (const [eIndex, evidence] of (item.evidence ?? []).entries()) {
-      const label = base + ".evidence[" + eIndex + "]";
-      if (evidence.scope !== undefined) nonempty(evidence.scope, label + ".scope", problems);
-      if (evidence.detail !== undefined) nonempty(evidence.detail, label + ".detail", problems);
-      if (evidence.kind === "prior_assessment") {
-        strings(evidence.from, label + ".from", problems);
-        for (const field of ["artifact", "revision", "environment", "date", "result"] as const) {
-          if (evidence[field] !== undefined)
-            problems.push(
-              label + "." + field + ": do not invent execution metadata for a prior assessment",
-            );
-        }
-      } else {
-        nonempty(evidence.scope, label + ".scope", problems);
-        nonempty(evidence.detail, label + ".detail", problems);
-        if (evidence.from !== undefined) problems.push(label + ".from: only for prior assessments");
-        for (const field of ["artifact", "revision", "environment"] as const)
-          nonempty(evidence[field], label + "." + field, problems);
-        if (!validDate(evidence.date))
-          problems.push(label + ".date: expected a valid YYYY-MM-DD date");
-        if (evidence.result === undefined)
-          problems.push(label + ".result: expected pass, fail or blocked");
-      }
-    }
-  }
+  for (const [index, item] of tracker.outcomes.entries())
+    validateOutcome(item, "outcomes[" + index + "]", areas, ids, problems);
   if (problems.length) throw new TrackerError(problems);
   return tracker;
 }

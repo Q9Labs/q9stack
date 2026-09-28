@@ -29,8 +29,10 @@ const successfulExec: GateExec = async (command, args = []): Promise<CommandResu
 const context: LaneContext = {
   repoRoot: "/fixture",
   changedFiles: classification.changedFiles,
+  allChangedFiles: classification.changedFiles,
   classification,
   scope: "full",
+  target: undefined,
   exec: successfulExec,
 };
 

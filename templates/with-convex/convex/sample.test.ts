@@ -4,9 +4,24 @@ import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 
-const modules = import.meta.glob(["./**/*.{ts,js}", "!./**/*.test.{ts,js}"]);
+const modules = import.meta.glob([
+  "./_generated/*.{js,ts}",
+  "./sample.ts",
+  "./diagnostics/persist.ts",
+]);
 
 describe("sample mutations", () => {
+  it("keeps the public sample action available without diagnostics identity", async () => {
+    const t = convexTest(schema, modules);
+    const sample = { id: "public-action", kind: "draft" as const, title: "Public sample" };
+
+    const id = await t.action(api.sample.saveFromAction, { sample });
+
+    expect(await t.query(api.sample.list, {})).toContainEqual(
+      expect.objectContaining({ _id: id, title: sample.title }),
+    );
+  });
+
   it("saves a sample idempotently and preserves its state", async () => {
     const t = convexTest(schema, modules);
     const sample = {

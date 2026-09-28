@@ -10,7 +10,10 @@ import { categoryTrigger } from "./trigger.js";
 
 export interface OsvOptions {
   readonly baselinePath?: string;
+  readonly exclude?: readonly string[];
 }
+
+const DEFAULT_EXCLUDES = ["scratchpad", ".worktrees"];
 
 interface OsvFinding {
   readonly ecosystem: string;
@@ -222,20 +225,13 @@ async function runOsv(context: LaneContext, options: OsvOptions): Promise<LaneRe
   }
   const baseline = baselineResult.value;
 
+  const excludeArgs = (options.exclude ?? DEFAULT_EXCLUDES).flatMap((directory) => [
+    "--experimental-exclude",
+    directory,
+  ]);
   const result = await context.exec(
     "osv-scanner",
-    [
-      "scan",
-      "source",
-      "-r",
-      "--experimental-exclude",
-      "scratchpad",
-      "--experimental-exclude",
-      ".worktrees",
-      "--format",
-      "json",
-      ".",
-    ],
+    ["scan", "source", "-r", ...excludeArgs, "--format", "json", "."],
     { cwd: context.repoRoot },
   );
 

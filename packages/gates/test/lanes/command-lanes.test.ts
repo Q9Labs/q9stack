@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Classification } from "../../src/core/types.js";
 import type { CommandResult, LaneContext } from "../../src/core/types.js";
+import { lanes, type SyncpackLaneOptions } from "../../src/index.js";
 import { actionlint } from "../../src/lanes/actionlint.js";
 import { build } from "../../src/lanes/build.js";
 import { depcruise } from "../../src/lanes/depcruise.js";
@@ -10,7 +11,6 @@ import { gitleaks } from "../../src/lanes/gitleaks.js";
 import { lint } from "../../src/lanes/lint.js";
 import { semgrep } from "../../src/lanes/semgrep.js";
 import { shellcheck } from "../../src/lanes/shellcheck.js";
-import { syncpack } from "../../src/lanes/syncpack.js";
 import { test as testLane } from "../../src/lanes/test.js";
 import { typecheck } from "../../src/lanes/typecheck.js";
 
@@ -46,8 +46,10 @@ function context(
   return {
     classification: emptyClassification,
     changedFiles,
+    allChangedFiles: changedFiles,
     scope,
     repoRoot: "/tmp/q9gate-fixture",
+    target: undefined,
     exec: async (command, args = []) => {
       calls.push({ command, args });
       if (command === failTool && args[0] === "--version") {
@@ -176,6 +178,35 @@ describe("command-backed lanes", () => {
     expect(gitleaksCalls[1]?.args).toContain("gates/baselines/gitleaks.json");
   });
 
+  it("preserves the directory scan and supports gitleaks git-history options", async () => {
+    const directoryCalls: Call[] = [];
+    await gitleaks().run(context(["src/a.ts"], directoryCalls));
+    expect(directoryCalls[1]).toEqual({
+      command: "gitleaks",
+      args: ["detect", "--source", ".", "--redact", "--verbose"],
+    });
+
+    const gitCalls: Call[] = [];
+    await gitleaks({
+      mode: "git",
+      logOpts: "HEAD",
+      baselinePath: "scripts/gates/gitleaks-baseline.json",
+    }).run(context(["src/a.ts"], gitCalls));
+    expect(gitCalls[1]).toEqual({
+      command: "gitleaks",
+      args: [
+        "git",
+        "--log-opts",
+        "HEAD",
+        "--baseline-path",
+        "scripts/gates/gitleaks-baseline.json",
+        "--redact",
+        "--verbose",
+        ".",
+      ],
+    });
+  });
+
   it("checks changed shell and workflow files", async () => {
     const shellCalls: Call[] = [];
     await shellcheck().run(context(["scripts/check.sh", ".github/workflows/ci.yml"], shellCalls));
@@ -197,8 +228,10 @@ describe("command-backed lanes", () => {
     const laneContext: LaneContext = {
       classification: emptyClassification,
       changedFiles: ["templates/base/apps/web/src/env.ts"],
+      allChangedFiles: ["templates/base/apps/web/src/env.ts"],
       scope: "branch",
       repoRoot: "/tmp/q9gate-fixture",
+      target: undefined,
       exec: async (command, args = []) => {
         calls.push({ command, args });
         if (args[0] === "--version") {
@@ -220,9 +253,39 @@ describe("command-backed lanes", () => {
 
   it("runs syncpack lint and returns an install hint for missing tools", async () => {
     const syncpackCalls: Call[] = [];
-    const syncpackResult = await syncpack().run(context(["package.json"], syncpackCalls));
+    const syncpackResult = await lanes.syncpack().run(context(["package.json"], syncpackCalls));
     expect(syncpackResult.status).toBe("passed");
     expect(syncpackCalls[1]).toEqual({ command: "syncpack", args: ["lint"] });
+
+    const configuredSyncpackCalls: Call[] = [];
+    const syncpackOptions: SyncpackLaneOptions = {
+      args: [
+        "lint",
+        "--source",
+        "package.json",
+        "--source",
+        "apps/*/package.json",
+        "--source",
+        "packages/*/package.json",
+        "--specifier-types",
+        "missing,unsupported",
+      ],
+    };
+    await lanes.syncpack(syncpackOptions).run(context(["package.json"], configuredSyncpackCalls));
+    expect(configuredSyncpackCalls[1]).toEqual({
+      command: "syncpack",
+      args: [
+        "lint",
+        "--source",
+        "package.json",
+        "--source",
+        "apps/*/package.json",
+        "--source",
+        "packages/*/package.json",
+        "--specifier-types",
+        "missing,unsupported",
+      ],
+    });
 
     const missingCalls: Call[] = [];
     const missingResult = await gitleaks().run(

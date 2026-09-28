@@ -34,8 +34,10 @@ function context(repoRoot: string, changedFiles: readonly string[], exec: GateEx
   return {
     repoRoot,
     changedFiles,
+    allChangedFiles: changedFiles,
     scope: "full",
     classification: classify(changedFiles),
+    target: undefined,
     exec,
   };
 }

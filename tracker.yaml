@@ -232,12 +232,12 @@ outcomes:
         detail: >-
           Focused Vitest suites passed (42 tests); the linked Convex scaffold's depcruise lane
           passed with 118 modules including 74 .ts/.tsx modules; all 11 public package manifests
-          declare Node >=24. On agents-macmini, pnpm build, pnpm typecheck, and q9gate full passed.
+          declare Node >=24. On a macOS arm64 build machine, pnpm build, pnpm typecheck, and q9gate full passed.
           pnpm test hit the unrelated 5-second timeout in packages/cli/test/cli.test.ts:158; the
           isolated overlapping-start test passed.
         artifact: packages/gates/test/lanes/special-lanes.test.ts
         revision: 02f9f75
-        environment: agents-macmini, macOS arm64, Node 26.5.0, pnpm 11.1.3
+        environment: macOS arm64, Node 26.5.0, pnpm 11.1.3
         date: "2026-09-27"
         result: pass
   - id: toolkit.recipes
@@ -315,23 +315,55 @@ outcomes:
   - id: foundation.starter_docs
     title: Generated projects ship theory.md, tracker.yaml and design.md
     area: foundation
-    state: planned
+    state: working
     summary: >-
-      The base template ships product.yaml, GLOSSARY.md and docs/, but not the theory, tracker
-      and design documents the products already use.
+      The base template ships seed theory.md, tracker.yaml, design.md and glossary.md, and the
+      generated gate runs q9 tracker check and q9 changelog check.
     theory: theory.md#scope-boundaries
     code:
-      - templates/base/product.yaml
+      - templates/base/theory.md
+      - templates/base/tracker.yaml
+      - templates/base/design.md
+      - templates/base/glossary.md
       - templates/base/AGENTS.md
-      - templates/base/README.md
-    priority: P1
-    size: M
-    size_reason: Template documents plus generated gate wiring for the tracker check.
-    remaining:
-      - >-
-        Replace product.yaml with seed theory.md, tracker.yaml and design.md, rename GLOSSARY.md to
-        glossary.md, and run q9 tracker check in the generated gate.
-      - Point the generated AGENTS.md, CLAUDE.md and README at the three documents.
+    evidence:
+      - kind: observation
+        scope: Fresh Convex and Postgres projects generated from local package archives
+        detail: >-
+          Both generated projects passed pnpm tracker:check and pnpm changelog:check, built, and ran
+          pnpm dev through q9 dev start; the Convex project's full gate passed 24 of 24 lanes.
+        artifact: packages/create-q9stack/test/copy-templates.test.ts
+        revision: d800a66
+        environment: macOS arm64, Node 26, pnpm 11.1.3, local Convex backend
+        date: "2026-09-28"
+        result: pass
+  - id: toolkit.diagnostics
+    title: One diagnostic code retrieves a redacted failure journey with its server executions
+    area: toolkit
+    state: working
+    summary: >-
+      @q9labsai/diagnostics defines the code, event and trace-brief contracts; q9 diag trace reads
+      them through a Convex or command adapter; the Convex scaffold captures, stores for 14 days
+      and shows a retrievable code.
+    theory: theory.md#observability
+    code:
+      - packages/diagnostics/src/index.ts
+      - packages/cli/src/diag.ts
+      - templates/with-convex/convex/diagnostics
+      - recipes/diagnostics-convex.md
+      - recipes/diagnostics-command.md
+    evidence:
+      - kind: observation
+        scope: Generated Convex project on a local backend, signed in through the starter flow
+        detail: >-
+          A real failed action showed a code in the EN and AR error UI; pnpm diag trace returned
+          the browser journey and the failing server execution linked by trace ID, complete, with
+          no visibility gaps. An unknown code returned not_found with exit 2.
+        artifact: templates/with-convex/convex/diagnostics.test.ts
+        revision: 5790dae
+        environment: macOS arm64, Node 26, pnpm 11.1.3, local Convex backend
+        date: "2026-09-28"
+        result: pass
   - id: roadmap.b01
     title: "B01: Add explicit frontend mock mode"
     area: foundation

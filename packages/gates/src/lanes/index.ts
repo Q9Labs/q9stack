@@ -96,6 +96,7 @@ export type { MigrationSafetyOptions } from "./migration-safety.js";
 export type { OsvOptions } from "./osv.js";
 export type { ReactDoctorOptions } from "./react-doctor.js";
 export type { SemgrepLaneOptions } from "./semgrep.js";
+export type { SyncpackLaneOptions } from "./syncpack.js";
 export type { TestLaneOptions } from "./test.js";
 export type { TestPresenceOptions } from "./test-presence.js";
 export type { TypecheckLaneOptions } from "./typecheck.js";

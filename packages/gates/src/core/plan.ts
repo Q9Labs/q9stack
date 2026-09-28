@@ -31,6 +31,9 @@ function assertUniqueLaneIds(lanes: readonly GateLane[]): void {
 }
 
 function triggerReason(lane: GateLane, context: TriggerContext): string | undefined {
+  if (lane.triggers === "always") {
+    return context.changedFiles.length > 0 ? "always required" : undefined;
+  }
   const result = lane.triggers(context);
   if (typeof result === "string") {
     return result;
@@ -54,8 +57,7 @@ function skippedReason(lane: GateLane): string {
 
 function planLane(
   lane: GateLane,
-  classification: Classification,
-  scope: GateScope,
+  context: TriggerContext,
   full: boolean,
   fullReason: string | undefined,
 ): PlannedLane {
@@ -67,17 +69,22 @@ function planLane(
     };
   }
 
-  if (classification.docsOnly) {
-    const selected = lane.id === "cspell" || lane.id === "hygiene";
+  if (context.classification.docsOnly) {
+    const selected = lane.triggers === "always" || lane.id === "cspell" || lane.id === "hygiene";
     return {
       lane,
       selected,
-      reason: selected ? "documentation files changed" : "skipped: documentation-only change",
+      reason:
+        lane.triggers === "always"
+          ? "always required"
+          : selected
+            ? "documentation files changed"
+            : "skipped: documentation-only change",
     };
   }
 
-  if (hasCategory(classification, "dependency") && dependencyForcedLaneIds.has(lane.id)) {
-    const count = filesForCategory(classification, "dependency").length;
+  if (hasCategory(context.classification, "dependency") && dependencyForcedLaneIds.has(lane.id)) {
+    const count = filesForCategory(context.classification, "dependency").length;
     return {
       lane,
       selected: true,
@@ -85,11 +92,6 @@ function planLane(
     };
   }
 
-  const context: TriggerContext = {
-    classification,
-    changedFiles: classification.changedFiles,
-    scope,
-  };
   const reason = triggerReason(lane, context);
   return {
     lane,
@@ -102,11 +104,21 @@ export function plan(
   classification: Classification,
   lanes: readonly GateLane[],
   scope: GateScope,
+  triggerContext: Pick<TriggerContext, "target" | "allChangedFiles"> = {
+    target: undefined,
+    allChangedFiles: classification.changedFiles,
+  },
 ): GatePlan {
   assertUniqueLaneIds(lanes);
+  const context: TriggerContext = {
+    classification,
+    changedFiles: classification.changedFiles,
+    scope,
+    ...triggerContext,
+  };
   const full = scope === "full" || classification.fullRequired;
   const fullReason = scope === "full" ? "--full requested" : classification.fullReason;
-  const planned = lanes.map((lane) => planLane(lane, classification, scope, full, fullReason));
+  const planned = lanes.map((lane) => planLane(lane, context, full, fullReason));
   if (fullReason === undefined) {
     return { full, lanes: planned };
   }

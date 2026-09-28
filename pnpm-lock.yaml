@@ -308,10 +308,6 @@ importers:
         version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/config-depcruise:
-    dependencies:
-      dependency-cruiser:
-        specifier: 'catalog:'
-        version: 18.4.0
     devDependencies:
       '@q9labsai/config-tsconfig':
         specifier: workspace:*
@@ -319,6 +315,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      dependency-cruiser:
+        specifier: 'catalog:'
+        version: 18.4.0
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(typescript@7.0.2)

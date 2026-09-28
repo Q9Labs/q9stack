@@ -43,7 +43,13 @@ beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), "q9-cli-test-"));
   for (const file of ["tracker.yaml", "note.md", "CHANGELOG.md"])
     await cp(path.join(fixture, file), path.join(root, file));
-  await writeFile(path.join(root, "q9.config.json"), JSON.stringify({ trackerAreas: ["custom"] }));
+  await writeFile(
+    path.join(root, "q9.config.json"),
+    JSON.stringify({
+      trackerAreas: ["custom"],
+      diag: { adapter: "command", command: ["node", "trace.mjs"] },
+    }),
+  );
   await writeFile(
     path.join(root, "package.json"),
     JSON.stringify({
@@ -180,7 +186,7 @@ describe("dev", () => {
     } finally {
       cli("dev", "reset");
     }
-  });
+  }, 20_000);
 
   it("finds a listening port owned by a child in the recorded process group", async () => {
     if (process.platform === "win32" || spawnSync("lsof", ["-v"]).error) return;

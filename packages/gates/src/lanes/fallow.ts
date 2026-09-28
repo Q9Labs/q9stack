@@ -1,3 +1,4 @@
+// cspell:ignore pathspecs
 import { access } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -78,18 +79,19 @@ const AUDIT_BASE_REFS = [
   "master",
 ] as const;
 
-async function detectableAuditBase(context: LaneContext): Promise<boolean> {
+async function detectableAuditBase(context: LaneContext): Promise<string | undefined> {
   for (const ref of AUDIT_BASE_REFS) {
+    // oxlint-disable-next-line no-await-in-loop -- Ref priority is significant and probing stops at the first valid base.
     const result = await context.exec(
       "git",
       ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`],
       { cwd: context.repoRoot },
     );
     if (!result.failed) {
-      return true;
+      return ref;
     }
   }
-  return false;
+  return undefined;
 }
 
 async function rootCommit(context: LaneContext): Promise<string | undefined> {
@@ -115,48 +117,255 @@ type FallowPreparation =
   | { readonly kind: "ready"; readonly invocation: FallowInvocation }
   | { readonly kind: "failed"; readonly result: LaneResult };
 
+type FallowDiff =
+  | { readonly kind: "ready"; readonly output: string }
+  | { readonly kind: "failed"; readonly result: LaneResult };
+
+function gitDiffFailure(message: string): LaneResult {
+  return { status: "failed", findings: [{ file: "git", rule: "diff", message }] };
+}
+
+function diffFailure(message: string): FallowDiff {
+  return { kind: "failed", result: gitDiffFailure(message) };
+}
+
+async function readFallowDiff(
+  context: LaneContext,
+  selectedPaths: readonly string[] | undefined,
+  diffArgs: readonly string[],
+  fallbackMessage: string,
+): Promise<FallowDiff> {
+  const result =
+    selectedPaths !== undefined && selectedPaths.length === 0
+      ? { failed: false, stdout: "", stderr: "", exitCode: 0, command: "git diff" }
+      : await context.exec(
+          "git",
+          [
+            ...(selectedPaths === undefined ? [] : ["--literal-pathspecs"]),
+            "diff",
+            ...diffArgs,
+            ...(selectedPaths === undefined ? [] : ["--", ...selectedPaths]),
+          ],
+          { cwd: context.repoRoot },
+        );
+  if (result.failed) {
+    return diffFailure(result.stderr || result.stdout || fallbackMessage);
+  }
+  return { kind: "ready", output: result.stdout };
+}
+
+async function selectedUntrackedDiff(
+  context: LaneContext,
+  selectedPaths: readonly string[],
+): Promise<FallowDiff> {
+  const untracked = await context.exec(
+    "git",
+    ["--literal-pathspecs", "ls-files", "--others", "-z", "--", ...selectedPaths],
+    { cwd: context.repoRoot },
+  );
+  if (untracked.failed) {
+    return diffFailure(
+      untracked.stderr || untracked.stdout || "Could not list untracked files for Fallow.",
+    );
+  }
+
+  const untrackedPaths = untracked.stdout.split("\0").filter((path) => path.length > 0);
+  const untrackedDiffs = await Promise.all(
+    untrackedPaths.map(async (path): Promise<FallowDiff> => {
+      const diff = await context.exec(
+        "git",
+        [
+          "--literal-pathspecs",
+          "diff",
+          "--no-index",
+          "--no-ext-diff",
+          "--binary",
+          "--",
+          "/dev/null",
+          path,
+        ],
+        { cwd: context.repoRoot },
+      );
+      if (diff.failed && (diff.exitCode !== 1 || diff.stdout.length === 0)) {
+        return diffFailure(
+          diff.stderr || diff.stdout || "Could not read an untracked file for Fallow.",
+        );
+      }
+      return { kind: "ready", output: diff.stdout };
+    }),
+  );
+  const failedUntrackedDiff = untrackedDiffs.find((diff) => diff.kind === "failed");
+  if (failedUntrackedDiff?.kind === "failed") {
+    return failedUntrackedDiff;
+  }
+
+  return {
+    kind: "ready",
+    output: untrackedDiffs.map((diff) => (diff.kind === "ready" ? diff.output : "")).join(""),
+  };
+}
+
+async function explicitInvocation(
+  context: LaneContext,
+  selectedPaths: readonly string[],
+): Promise<FallowPreparation> {
+  const base = context.base ?? (await detectableAuditBase(context)) ?? (await rootCommit(context));
+  const args = ["audit"];
+  let diffBase: string;
+  if (base === undefined) {
+    const emptyTree = await context.exec("git", ["hash-object", "-t", "tree", "--stdin"], {
+      cwd: context.repoRoot,
+      input: "",
+    });
+    if (emptyTree.failed) {
+      return {
+        kind: "failed",
+        result: gitDiffFailure(
+          emptyTree.stderr ||
+            emptyTree.stdout ||
+            "Could not resolve the empty Git tree for Fallow.",
+        ),
+      };
+    }
+    diffBase = emptyTree.stdout.trim();
+  } else {
+    const mergeBase = await context.exec("git", ["merge-base", base, "HEAD"], {
+      cwd: context.repoRoot,
+    });
+    if (mergeBase.failed) {
+      return {
+        kind: "failed",
+        result: gitDiffFailure(
+          mergeBase.stderr || mergeBase.stdout || "Could not resolve the merge base for Fallow.",
+        ),
+      };
+    }
+    diffBase = mergeBase.stdout.trim();
+    args.push("--changed-since", base);
+  }
+
+  const tracked = await readFallowDiff(
+    context,
+    selectedPaths,
+    [diffBase, "--no-ext-diff", "--binary"],
+    "Could not read selected changes for Fallow.",
+  );
+  if (tracked.kind === "failed") {
+    return { kind: "failed", result: tracked.result };
+  }
+  const untracked = await selectedUntrackedDiff(context, selectedPaths);
+  if (untracked.kind === "failed") {
+    return { kind: "failed", result: untracked.result };
+  }
+  args.push("--diff-stdin");
+  return {
+    kind: "ready",
+    invocation: { args, input: tracked.output + untracked.output },
+  };
+}
+
+async function stagedInvocation(
+  context: LaneContext,
+  selectedPaths: readonly string[] | undefined,
+): Promise<FallowPreparation> {
+  const staged = await readFallowDiff(
+    context,
+    selectedPaths,
+    ["--cached", "--no-ext-diff", "--binary"],
+    "Could not read staged changes for Fallow.",
+  );
+  if (staged.kind === "failed") {
+    return staged;
+  }
+
+  const args = ["audit", "--diff-stdin"];
+  let input = staged.output;
+  if (context.base !== undefined) {
+    const branch = await readFallowDiff(
+      context,
+      selectedPaths,
+      ["--no-ext-diff", "--binary", `${context.base}...HEAD`],
+      "Could not read branch changes for Fallow.",
+    );
+    if (branch.kind === "failed") {
+      return branch;
+    }
+    input = branch.output + input;
+    args.push("--changed-since", context.base);
+  }
+  return { kind: "ready", invocation: { args, input } };
+}
+
+async function branchInvocation(
+  context: LaneContext,
+  selectedPaths: readonly string[] | undefined,
+): Promise<FallowPreparation> {
+  const args = ["audit"];
+  if (context.base === undefined) {
+    return { kind: "ready", invocation: { args } };
+  }
+  if (selectedPaths === undefined) {
+    args.push("--changed-since", context.base);
+    return { kind: "ready", invocation: { args } };
+  }
+
+  const branch = await readFallowDiff(
+    context,
+    selectedPaths,
+    ["--no-ext-diff", "--binary", `${context.base}...HEAD`],
+    "Could not read branch changes for Fallow.",
+  );
+  if (branch.kind === "failed") {
+    return branch;
+  }
+  args.push("--changed-since", context.base, "--diff-stdin");
+  return { kind: "ready", invocation: { args, input: branch.output } };
+}
+
+async function scopedInvocation(
+  context: LaneContext,
+  selectedPaths: readonly string[] | undefined,
+): Promise<FallowPreparation> {
+  if (context.scope === "staged") {
+    return stagedInvocation(context, selectedPaths);
+  }
+  if (context.scope === "branch") {
+    return branchInvocation(context, selectedPaths);
+  }
+  return { kind: "ready", invocation: { args: ["audit"] } };
+}
+
+async function appendFallbackAuditBase(context: LaneContext, args: string[]): Promise<void> {
+  if (args.includes("--changed-since") || (await detectableAuditBase(context)) !== undefined) {
+    return;
+  }
+  // Fresh repositories without an upstream or origin default branch break Fallow's
+  // base detection; the root commit keeps the audit's changed-since contract intact.
+  const fallback = await rootCommit(context);
+  if (fallback !== undefined) {
+    args.push("--changed-since", fallback);
+  }
+}
+
 async function fallowInvocation(
   context: LaneContext,
   options: FallowOptions,
 ): Promise<FallowPreparation> {
-  const args = ["audit"];
-  let input: string | undefined;
-  if (context.scope === "staged") {
-    const diff = await context.exec("git", ["diff", "--cached", "--no-ext-diff", "--binary"], {
-      cwd: context.repoRoot,
-    });
-    if (diff.failed) {
-      return {
-        kind: "failed",
-        result: {
-          status: "failed",
-          findings: [
-            {
-              file: "git",
-              rule: "diff",
-              message: diff.stderr || diff.stdout || "Could not read staged changes for Fallow.",
-            },
-          ],
-        },
-      };
-    }
-    args.push("--diff-stdin");
-    input = diff.stdout;
+  const selectedPaths = context.explicitFileSelection ? context.changedFiles : undefined;
+  const hasSelectedFiles = selectedPaths !== undefined && selectedPaths.length > 0;
+  const preparation = hasSelectedFiles
+    ? await explicitInvocation(context, selectedPaths)
+    : await scopedInvocation(context, selectedPaths);
+  if (preparation.kind === "failed") {
+    return preparation;
   }
-  if (context.scope === "branch" && context.base !== undefined) {
-    args.push("--changed-since", context.base);
-  }
-  if (!args.includes("--changed-since") && !(await detectableAuditBase(context))) {
-    // Fresh repositories without an upstream or origin default branch break Fallow's
-    // base detection; the root commit keeps the audit's changed-since contract intact.
-    const fallback = await rootCommit(context);
-    if (fallback !== undefined) {
-      args.push("--changed-since", fallback);
-    }
-  }
+
+  const args = [...preparation.invocation.args];
+  await appendFallbackAuditBase(context, args);
   args.push(
     ...(await baselineArgs(context.repoRoot, options.baselineDir ?? "gates/baselines/fallow")),
   );
+  const input = preparation.invocation.input;
   const invocation = input === undefined ? { args } : { args, input };
   return { kind: "ready", invocation };
 }
@@ -181,10 +390,11 @@ function fallowCommandResult(result: CommandResult): LaneResult {
 
 async function executeFallow(
   context: LaneContext,
+  command: string,
   invocation: FallowInvocation,
 ): Promise<LaneResult> {
   try {
-    const result = await context.exec("fallow", invocation.args, {
+    const result = await context.exec(command, invocation.args, {
       cwd: context.repoRoot,
       ...(invocation.input === undefined ? {} : { input: invocation.input }),
     });
@@ -193,7 +403,7 @@ async function executeFallow(
     const message = error instanceof Error ? error.message : String(error);
     return {
       status: "failed",
-      findings: [{ file: "fallow", rule: "execution", message }],
+      findings: [{ file: command, rule: "execution", message }],
     };
   }
 }
@@ -214,7 +424,7 @@ async function runFallow(context: LaneContext, options: FallowOptions): Promise<
   if (invocation.kind === "failed") {
     return invocation.result;
   }
-  return executeFallow(context, invocation.invocation);
+  return executeFallow(context, available.command, invocation.invocation);
 }
 
 export function fallow(options: FallowOptions = {}): GateLane {

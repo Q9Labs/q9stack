@@ -1,4 +1,4 @@
-import { v, type Infer } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import { internal } from "./_generated/api.js";
 import type { Id } from "./_generated/dataModel.js";
@@ -9,6 +9,7 @@ import {
   query,
   type MutationCtx,
 } from "./_generated/server.js";
+import { withInternalDiagnostics } from "./diagnostics/functions.js";
 import { sampleDocumentValidator, sampleInputValidator, sampleKindValidator } from "./schema.js";
 
 type SampleInput = Infer<typeof sampleInputValidator>;
@@ -70,5 +71,19 @@ export const saveFromAction = action({
   },
   returns: v.id("samples"),
   handler: async (ctx, args): Promise<Id<"samples">> =>
-    await ctx.runMutation(internal["sample"].persist, { sample: args.sample }),
+    await withInternalDiagnostics(ctx, "sample:saveFromAction", () =>
+      ctx.runMutation(internal["sample"].persist, { sample: args.sample }),
+    ),
+});
+
+// Development-only verification path for the scaffold's diagnostic code flow.
+export const failForDiagnostics = action({
+  args: {},
+  handler: async (ctx) => {
+    if (process.env["APP_ENV"] !== "dev") throw new Error("UNAVAILABLE");
+    if (!(await ctx.auth.getUserIdentity())) throw new ConvexError({ code: "UNAUTHENTICATED" });
+    return await withInternalDiagnostics(ctx, "sample:failForDiagnostics", async () => {
+      throw new Error("Diagnostic verification failure: private cause never leaves logs");
+    });
+  },
 });

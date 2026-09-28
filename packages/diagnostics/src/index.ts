@@ -66,7 +66,9 @@ const routeTemplate = z
   .string()
   .min(1)
   .max(96)
-  .regex(/^\/(?:[a-z][a-z0-9_-]*|:[a-z][a-z0-9_]*)(?:\/(?:[a-z][a-z0-9_-]*|:[a-z][a-z0-9_]*))*$/);
+  .regex(
+    /^\/(?:(?:[a-z][a-z0-9_-]*|:[a-z][a-z0-9_]*)(?:\/(?:[a-z][a-z0-9_-]*|:[a-z][a-z0-9_]*))*)?$/,
+  );
 const functionIdentifier = z
   .string()
   .min(3)
@@ -259,15 +261,16 @@ export const serverSpanSchema = z.strictObject({
     .max(128)
     .regex(/^[a-zA-Z0-9_-]+$/)
     .optional(),
+  // Server spans are named after Convex functions, which are usually camelCase.
   name: z
     .string()
     .min(3)
     .max(96)
-    .regex(/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/),
+    .regex(/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/),
   occurredAt: z.number().int().min(0),
   durationMs: z.number().finite().min(0).max(604_800_000).optional(),
   status: z.enum(["unset", "ok", "error"]),
-  correlation: z.enum(["request_id", "heuristic", "unmatched"]),
+  correlation: z.enum(["request_id", "trace_id", "heuristic", "unmatched"]),
   safeStackFrames: z.array(safeStackFrameSchema).max(12).optional(),
 });
 export const diagnosticTraceBriefSchema = z.strictObject({

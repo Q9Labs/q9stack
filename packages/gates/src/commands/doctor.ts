@@ -1,8 +1,8 @@
 import { validateBaseline } from "../adapters/baseline-store.js";
 import { writeErrorLine, writeLine } from "../adapters/terminal.js";
-import { probeTool, type ToolRequirement } from "../adapters/tool.js";
+import { probeTool, type DoctorLane, type ToolRequirement } from "../adapters/tool.js";
 import { classify } from "../core/classify.js";
-import type { BaselineSpec, GateConfig, GateExec, LaneContext } from "../core/types.js";
+import type { BaselineSpec, GateConfig, GateExec, GateLane, LaneContext } from "../core/types.js";
 import { hygiene } from "../lanes/hygiene.js";
 
 const toolByLane: readonly (ToolRequirement & { readonly laneId: string })[] = [
@@ -38,6 +38,10 @@ const toolByLane: readonly (ToolRequirement & { readonly laneId: string })[] = [
   },
 ];
 
+function hasDoctorTools(lane: GateLane): lane is DoctorLane {
+  return "doctorTools" in lane;
+}
+
 async function baselineFailure(repoRoot: string, spec: BaselineSpec): Promise<string | undefined> {
   try {
     await validateBaseline(repoRoot, spec);
@@ -58,8 +62,11 @@ export async function doctorCommand(
   const baselineFailures = (
     await Promise.all(specs.map((spec) => baselineFailure(repoRoot, spec)))
   ).filter((failure) => failure !== undefined);
-  const configuredIds = new Set(config.lanes.map((lane) => lane.id));
-  const requirements = toolByLane.filter((requirement) => configuredIds.has(requirement.laneId));
+  const requirements = config.lanes.flatMap((lane) =>
+    hasDoctorTools(lane)
+      ? lane.doctorTools
+      : toolByLane.filter((requirement) => requirement.laneId === lane.id),
+  );
   const toolAvailability = await Promise.all(
     requirements.map((requirement) => probeTool(exec, requirement, repoRoot)),
   );
@@ -68,13 +75,19 @@ export async function doctorCommand(
   );
   const failures = [...baselineFailures, ...toolFailures];
 
-  const hygieneLane = hygiene();
+  const hygieneLane = hygiene({
+    requiredScripts: config.lanes.flatMap((lane) =>
+      hasDoctorTools(lane) ? (lane.packageScript ?? []) : [],
+    ),
+  });
   const classification = classify(["gate.config.ts"], config.classifiers);
   const context: LaneContext = {
     repoRoot,
     changedFiles: classification.changedFiles,
+    allChangedFiles: classification.changedFiles,
     classification,
     scope: "full",
+    target: undefined,
     exec,
   };
   const result = await hygieneLane.run(context);

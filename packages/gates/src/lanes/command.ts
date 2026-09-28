@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
-import { probeTool, type ToolRequirement } from "../adapters/tool.js";
+import { probeTool, type DoctorLane, type ToolRequirement } from "../adapters/tool.js";
 import type { LaneFinding } from "../core/report.js";
-import type { GateCategory, GateLane, LaneContext, LaneResult } from "../core/types.js";
+import type { GateCategory, LaneContext, LaneResult } from "../core/types.js";
 import { categoryTrigger } from "./trigger.js";
 
 export interface CommandLaneOptions {
@@ -45,13 +45,16 @@ async function executeRequiredCommand(
   if (!availability.available) {
     return { status: "failed", findings: [availability.finding] };
   }
+  const executable = command === tool.command ? availability.command : command;
 
   try {
-    const result = await context.exec(command, args, { cwd: context.repoRoot });
+    const result = await context.exec(executable, args, { cwd: context.repoRoot });
     if (result.failed || result.exitCode !== 0) {
       return {
         status: "failed",
-        findings: [commandFinding(command, resultMessage(command, result.stdout, result.stderr))],
+        findings: [
+          commandFinding(executable, resultMessage(executable, result.stdout, result.stderr)),
+        ],
       };
     }
     return { status: "passed" };
@@ -59,20 +62,25 @@ async function executeRequiredCommand(
     const detail = error instanceof Error ? error.message : String(error);
     return {
       status: "failed",
-      findings: [commandFinding(command, `${command} could not be executed: ${detail}`)],
+      findings: [commandFinding(executable, `${executable} could not be executed: ${detail}`)],
     };
   }
 }
 
-export function makeCommandLane(options: CommandLaneOptions): GateLane {
+export function makeCommandLane(options: CommandLaneOptions): DoctorLane {
   const command = options.command ?? options.tool.command;
+  const tool = { ...options.tool, command };
   return {
     id: options.id,
     title: options.title,
     categories: options.categories,
     triggers: categoryTrigger(options.categories),
     ...(options.exclusive === undefined ? {} : { exclusive: options.exclusive }),
-    run: (context) => executeRequiredCommand(context, options.tool, command, options.args),
+    doctorTools: [tool],
+    ...(command === "pnpm" && options.args?.[0] === "run" && options.args[1] !== undefined
+      ? { packageScript: options.args[1] }
+      : {}),
+    run: (context) => executeRequiredCommand(context, tool, command, options.args),
   };
 }
 

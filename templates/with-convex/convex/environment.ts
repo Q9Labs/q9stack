@@ -22,7 +22,7 @@ export const readConvexAuthEnvironment = (
   const betterAuthSecret = requireValue(source, "BETTER_AUTH_SECRET");
   const siteUrl = requireValue(source, "SITE_URL");
   try {
-    return { betterAuthSecret, siteUrl: new URL(siteUrl).toString() };
+    return { betterAuthSecret, siteUrl: new URL(siteUrl).origin };
   } catch (error: unknown) {
     throw new Error("SITE_URL must be a valid URL", { cause: error });
   }

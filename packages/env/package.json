@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/env",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Typed, accumulated environment configuration for Node, Workers, and Vite",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/env#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

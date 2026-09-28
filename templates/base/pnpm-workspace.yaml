@@ -51,17 +51,24 @@ catalog:
   cspell: 10.3.3
   lefthook: 2.1.14
   typescript: 7.0.2
-  "@q9labsai/config-depcruise": ^0.1.0
-  "@q9labsai/config-oxlint": ^0.1.0
-  "@q9labsai/config-semgrep": ^0.2.0
-  "@q9labsai/config-tsconfig": ^0.1.0
-  "@q9labsai/cli": ^0.2.0
-  "@q9labsai/env": ^0.1.0
-  "@q9labsai/gates": ^0.2.0
-  "@q9labsai/ui": ^0.1.0
+  "@q9labsai/config-depcruise": ^0.3.0
+  "@q9labsai/config-oxlint": ^0.3.0
+  "@q9labsai/config-semgrep": ^0.3.0
+  "@q9labsai/config-tsconfig": ^0.3.0
+  "@q9labsai/cli": ^0.3.0
+  "@q9labsai/env": ^0.3.0
+  "@q9labsai/gates": ^0.3.0
+  "@q9labsai/ui": ^0.3.0
 
 overrides:
-  # GHSA-q8mj-m7cp-5q26: qs < 6.15.2 DoS, pulled via stryker's typed-rest-client.
-  qs: 6.15.3
+  # Fix qs advisories GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g, and
+  # GHSA-x5fp-wj9c-mxmx in the transitive Stryker typed-rest-client dependency.
+  qs: 6.16.0
   # Keep the Effect type identity shared with the currently published q9 packages.
   effect: "catalog:"
+
+# dependency-cruiser 18 needs TypeScript <7 to analyze .ts/.tsx files.
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

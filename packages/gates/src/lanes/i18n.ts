@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, matchesGlob, relative, resolve, sep } from "node:path";
 
 import glob from "fast-glob";
-import { po, type GetTextTranslation, type GetTextTranslations } from "gettext-parser";
+import { po, type GetTextTranslations } from "gettext-parser";
 import { z } from "zod";
 
 import type { LaneFinding } from "../core/report.js";
@@ -10,23 +10,35 @@ import type { GateLane, LaneContext, LaneResult, TriggerContext } from "../core/
 import { compareIcuMessages, inspectIcuMessage, type IcuInspection } from "./i18n-icu.js";
 
 export interface I18nLaneOptions {
+  readonly format?: "po" | "json";
   readonly catalogGlob?: string;
   readonly sourceLocale?: string;
   readonly allowlistPath?: string;
 }
 
 interface ResolvedI18nOptions {
+  readonly format: "po" | "json";
   readonly catalogGlob: string;
   readonly sourceLocale: string;
   readonly allowlistPath: string;
 }
 
+interface CatalogMessage {
+  readonly file: string;
+  readonly id: string;
+  readonly context: string;
+  readonly forms: readonly string[];
+  readonly pluralId: string | undefined;
+}
+
 interface LoadedCatalog {
   readonly file: string;
   readonly locale: string;
-  readonly messages: ReadonlyMap<string, GetTextTranslation>;
+  readonly messages: ReadonlyMap<string, CatalogMessage>;
   readonly pluralFormCount: number | undefined;
 }
+
+type JsonCatalogValue = string | { readonly [key: string]: JsonCatalogValue };
 
 interface AllowlistEntry {
   readonly locale: string;
@@ -43,10 +55,16 @@ interface LoadedAllowlist {
 type AllowlistPayload = z.infer<typeof allowlistSchema>;
 
 const DEFAULT_OPTIONS: ResolvedI18nOptions = {
+  format: "po",
   catalogGlob: "apps/web/src/locales/*/messages.po",
   sourceLocale: "en",
   allowlistPath: "gates/i18n-allowlist.json",
 };
+
+const jsonCatalogValueSchema: z.ZodType<JsonCatalogValue> = z.lazy(() =>
+  z.union([z.string(), z.record(z.string(), jsonCatalogValueSchema)]),
+);
+const jsonCatalogSchema = z.record(z.string(), jsonCatalogValueSchema);
 
 const allowlistSchema = z
   .object({
@@ -85,18 +103,62 @@ function isArabicLocale(locale: string): boolean {
   return normalized === "ar" || normalized.startsWith("ar-") || normalized.startsWith("ar_");
 }
 
-function catalogMessageKey(message: GetTextTranslation): string {
-  return `${message.msgctxt ?? ""}\u0004${message.msgid}`;
+function catalogMessageKey(message: Pick<CatalogMessage, "context" | "id">): string {
+  return `${message.context}\u0004${message.id}`;
 }
 
-function catalogMessages(catalog: GetTextTranslations): ReadonlyMap<string, GetTextTranslation> {
-  const messages = new Map<string, GetTextTranslation>();
+function catalogMessages(
+  catalog: GetTextTranslations,
+  file: string,
+): ReadonlyMap<string, CatalogMessage> {
+  const messages = new Map<string, CatalogMessage>();
   for (const entries of Object.values(catalog.translations)) {
-    for (const message of Object.values(entries)) {
-      if (message.msgid.length === 0 || message.obsolete === true) {
+    for (const translation of Object.values(entries)) {
+      if (translation.msgid.length === 0 || translation.obsolete === true) {
         continue;
       }
+      const message: CatalogMessage = {
+        file,
+        id: translation.msgid,
+        context: translation.msgctxt ?? "",
+        forms: translation.msgstr,
+        pluralId: translation.msgid_plural,
+      };
       messages.set(catalogMessageKey(message), message);
+    }
+  }
+  return messages;
+}
+
+function flattenJsonCatalog(
+  file: string,
+  value: JsonCatalogValue,
+  prefix = "",
+  messages = new Map<string, CatalogMessage>(),
+): ReadonlyMap<string, CatalogMessage> {
+  if (typeof value === "string") {
+    throw new Error(`JSON catalog root and namespaces must be objects in ${file}.`);
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (key.trim().length === 0) {
+      throw new Error(`JSON catalog message keys must be non-empty in ${file}.`);
+    }
+    const id = prefix.length === 0 ? key : `${prefix}.${key}`;
+    if (typeof child === "string") {
+      const message: CatalogMessage = {
+        file,
+        id,
+        context: "",
+        forms: [child],
+        pluralId: undefined,
+      };
+      const messageMapKey = catalogMessageKey(message);
+      if (messages.has(messageMapKey)) {
+        throw new Error(`JSON catalog has duplicate flattened message key ${id} in ${file}.`);
+      }
+      messages.set(messageMapKey, message);
+    } else {
+      flattenJsonCatalog(file, child, id, messages);
     }
   }
   return messages;
@@ -112,16 +174,35 @@ function gettextPluralFormCount(catalog: GetTextTranslations): number | undefine
   return Number.isSafeInteger(count) && count > 0 ? count : undefined;
 }
 
-async function loadCatalog(repoRoot: string, file: string): Promise<LoadedCatalog | LaneFinding> {
+async function loadCatalog(
+  repoRoot: string,
+  file: string,
+  format: ResolvedI18nOptions["format"],
+): Promise<LoadedCatalog | LaneFinding> {
   const locale = basename(dirname(file));
   try {
     const source = await readFile(resolve(repoRoot, file), "utf8");
-    const catalog = po.parse(source, { validation: true });
+    if (format === "po") {
+      const catalog = po.parse(source, { validation: true });
+      return {
+        file,
+        locale,
+        messages: catalogMessages(catalog, file),
+        pluralFormCount: gettextPluralFormCount(catalog),
+      };
+    }
+    const decoded: unknown = JSON.parse(source);
+    const parsed = jsonCatalogSchema.safeParse(decoded);
+    if (!parsed.success) {
+      throw new Error(
+        `JSON catalog must contain nested objects and string messages: ${parsed.error.message}`,
+      );
+    }
     return {
       file,
       locale,
-      messages: catalogMessages(catalog),
-      pluralFormCount: gettextPluralFormCount(catalog),
+      messages: flattenJsonCatalog(file, parsed.data),
+      pluralFormCount: undefined,
     };
   } catch (error: unknown) {
     return finding(file, "i18n-catalog-parse", `Could not parse ${file}: ${errorMessage(error)}`);
@@ -209,22 +290,19 @@ function normalizedMessage(message: string): string {
   return message.replace(/\s+/gu, " ").trim();
 }
 
-function displayId(message: GetTextTranslation): string {
-  const context = message.msgctxt;
-  return context === undefined || context.length === 0
-    ? message.msgid
-    : `${context} / ${message.msgid}`;
+function displayId(message: CatalogMessage): string {
+  return message.context.length === 0 ? message.id : `${message.context} / ${message.id}`;
 }
 
-function sourceTextFor(targetIndex: number, source: GetTextTranslation): string | undefined {
-  return source.msgstr[targetIndex] ?? source.msgstr[0];
+function sourceTextFor(targetIndex: number, source: CatalogMessage): string | undefined {
+  return source.forms[targetIndex] ?? source.forms[0];
 }
 
 interface TranslationCheck {
   readonly file: string;
   readonly locale: string;
-  readonly source: GetTextTranslation;
-  readonly target: GetTextTranslation;
+  readonly source: CatalogMessage;
+  readonly target: CatalogMessage;
   readonly allowed: AllowlistEntry | undefined;
   readonly usedAllowlist: Set<string>;
   readonly allowlistKey: string;
@@ -232,16 +310,16 @@ interface TranslationCheck {
   readonly findings: LaneFinding[];
 }
 
-function translationForms(target: GetTextTranslation): readonly string[] {
-  return target.msgstr.length === 0 ? [""] : target.msgstr;
+function translationForms(target: CatalogMessage): readonly string[] {
+  return target.forms.length === 0 ? [""] : target.forms;
 }
 
-function sourceHasEnglishText(source: GetTextTranslation): boolean {
-  return source.msgstr.length > 0 && source.msgstr.some((text) => text.trim().length > 0);
+function sourceHasEnglishText(source: CatalogMessage): boolean {
+  return source.forms.length > 0 && source.forms.some((text) => text.trim().length > 0);
 }
 
 function untranslatedForms(
-  source: GetTextTranslation,
+  source: CatalogMessage,
   translations: readonly string[],
 ): readonly string[] {
   const invalidText: string[] = [];
@@ -346,7 +424,7 @@ function checkArabicGettextForms(
   translations: readonly string[],
 ): void {
   const hasPluralMessage =
-    check.source.msgid_plural !== undefined || check.target.msgid_plural !== undefined;
+    check.source.pluralId !== undefined || check.target.pluralId !== undefined;
   if (!isArabicLocale(check.locale) || !hasPluralMessage) {
     return;
   }
@@ -390,7 +468,7 @@ function compareTranslations(check: TranslationCheck): void {
   const translations = translationForms(target);
   if (!sourceHasEnglishText(source)) {
     check.findings.push(
-      finding(check.sourceFile, "i18n-source-empty", `Source message ${id} has no English text.`),
+      finding(source.file, "i18n-source-empty", `Source message ${id} has no English text.`),
     );
     return;
   }
@@ -430,16 +508,16 @@ function checkSourceTranslations(check: TargetCatalogCheck): void {
       );
       continue;
     }
-    const allowlistKey = messageKey(check.locale, source.msgid, source.msgctxt ?? "");
+    const allowlistKey = messageKey(check.locale, source.id, source.context);
     compareTranslations({
-      file: check.targetCatalog.file,
+      file: target.file,
       locale: check.locale,
       source,
       target,
       allowed: check.allowlist.get(allowlistKey),
       usedAllowlist: check.usedAllowlist,
       allowlistKey,
-      sourceFile: check.sourceCatalog.file,
+      sourceFile: source.file,
       findings: check.findings,
     });
   }
@@ -450,7 +528,7 @@ function checkExtraTargetMessages(check: TargetCatalogCheck): void {
     if (!check.sourceCatalog.messages.has(catalogMessageKey(target))) {
       check.findings.push(
         finding(
-          check.targetCatalog.file,
+          target.file,
           "i18n-catalog-parity",
           `${displayId(target)} has no matching ${check.sourceLocale} source message.`,
         ),
@@ -459,12 +537,12 @@ function checkExtraTargetMessages(check: TargetCatalogCheck): void {
   }
 }
 
-function checkArabicPluralHeader(check: TargetCatalogCheck, target: GetTextTranslation): void {
-  if (target.msgid_plural === undefined || !isArabicLocale(check.locale)) {
+function checkArabicPluralHeader(check: TargetCatalogCheck, target: CatalogMessage): void {
+  if (target.pluralId === undefined || !isArabicLocale(check.locale)) {
     return;
   }
   const source = check.sourceCatalog.messages.get(catalogMessageKey(target));
-  if (source?.msgid_plural === undefined) {
+  if (source?.pluralId === undefined) {
     return;
   }
   if (check.targetCatalog.pluralFormCount === arabicCardinalCategories.length) {
@@ -472,7 +550,7 @@ function checkArabicPluralHeader(check: TargetCatalogCheck, target: GetTextTrans
   }
   check.findings.push(
     finding(
-      check.targetCatalog.file,
+      target.file,
       "i18n-arabic-plurals",
       `${displayId(target)} in ${check.locale} must declare ${arabicCardinalCategories.length} Arabic gettext plural forms in its Plural-Forms header.`,
     ),
@@ -563,7 +641,11 @@ type CatalogPathResult =
   | { readonly kind: "ready"; readonly files: readonly string[] }
   | { readonly kind: "failed"; readonly result: LaneResult };
 
-async function catalogPaths(repoRoot: string, pattern: string): Promise<CatalogPathResult> {
+async function catalogPaths(
+  repoRoot: string,
+  pattern: string,
+  format: ResolvedI18nOptions["format"],
+): Promise<CatalogPathResult> {
   let files: string[];
   try {
     files = await glob(pattern, {
@@ -593,7 +675,13 @@ async function catalogPaths(repoRoot: string, pattern: string): Promise<CatalogP
       kind: "failed",
       result: {
         status: "failed",
-        findings: [finding(pattern, "i18n-catalog-missing", `No PO catalogs matched ${pattern}.`)],
+        findings: [
+          finding(
+            pattern,
+            "i18n-catalog-missing",
+            `No ${format.toUpperCase()} catalogs matched ${pattern}.`,
+          ),
+        ],
         metrics: { filesChecked: 0 },
       },
     };
@@ -603,6 +691,7 @@ async function catalogPaths(repoRoot: string, pattern: string): Promise<CatalogP
 
 function catalogMap(
   loadedCatalogs: readonly (LoadedCatalog | LaneFinding)[],
+  format: ResolvedI18nOptions["format"],
   findings: LaneFinding[],
 ): Map<string, LoadedCatalog> {
   const catalogs = new Map<string, LoadedCatalog>();
@@ -611,7 +700,8 @@ function catalogMap(
       findings.push(loaded);
       continue;
     }
-    if (catalogs.has(loaded.locale)) {
+    const existing = catalogs.get(loaded.locale);
+    if (existing !== undefined && format === "po") {
       findings.push(
         finding(
           loaded.file,
@@ -621,26 +711,49 @@ function catalogMap(
       );
       continue;
     }
-    catalogs.set(loaded.locale, loaded);
+    if (existing === undefined) {
+      catalogs.set(loaded.locale, loaded);
+      continue;
+    }
+    const messages = new Map(existing.messages);
+    for (const [key, message] of loaded.messages) {
+      if (messages.has(key)) {
+        findings.push(
+          finding(
+            message.file,
+            "i18n-catalog-duplicate-message",
+            `More than one JSON catalog defines ${displayId(message)} for locale ${loaded.locale}.`,
+          ),
+        );
+        continue;
+      }
+      messages.set(key, message);
+    }
+    catalogs.set(loaded.locale, {
+      ...existing,
+      messages,
+    });
   }
   return catalogs;
 }
 
 async function runI18n(context: LaneContext, options: ResolvedI18nOptions): Promise<LaneResult> {
-  const pathResult = await catalogPaths(context.repoRoot, options.catalogGlob);
+  const pathResult = await catalogPaths(context.repoRoot, options.catalogGlob, options.format);
   if (pathResult.kind === "failed") {
     return pathResult.result;
   }
   const [loadedCatalogs, allowlist] = await Promise.all([
-    Promise.all(pathResult.files.map((file) => loadCatalog(context.repoRoot, file))),
+    Promise.all(
+      pathResult.files.map((file) => loadCatalog(context.repoRoot, file, options.format)),
+    ),
     loadAllowlist(context.repoRoot, options.allowlistPath),
   ]);
   const findings: LaneFinding[] = [...allowlist.findings];
-  const catalogs = catalogMap(loadedCatalogs, findings);
+  const catalogs = catalogMap(loadedCatalogs, options.format, findings);
   checkCatalogs(catalogs, options.sourceLocale, allowlist.entries, options.allowlistPath, findings);
   return {
     status: findings.length === 0 ? "passed" : "failed",
-    metrics: { filesChecked: catalogs.size },
+    metrics: { filesChecked: pathResult.files.length },
     ...(findings.length === 0 ? {} : { findings }),
   };
 }
@@ -660,6 +773,7 @@ function i18nTrigger(context: TriggerContext, catalogGlob: string): boolean | st
 
 export function i18n(options: I18nLaneOptions = {}): GateLane {
   const resolved: ResolvedI18nOptions = {
+    format: options.format ?? DEFAULT_OPTIONS.format,
     catalogGlob: options.catalogGlob ?? DEFAULT_OPTIONS.catalogGlob,
     sourceLocale: options.sourceLocale ?? DEFAULT_OPTIONS.sourceLocale,
     allowlistPath: options.allowlistPath ?? DEFAULT_OPTIONS.allowlistPath,

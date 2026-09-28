@@ -1,14 +1,44 @@
-import { useLingui } from "@lingui/react/macro";
 import { api } from "@__APP_SLUG__/convex";
-import { Badge, Card } from "@q9labsai/ui";
+import { useLingui } from "@lingui/react/macro";
+import { diagnosticCodeSchema } from "@q9labsai/diagnostics";
+import { Badge, Button, Card } from "@q9labsai/ui";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
+import { useState } from "react";
+
+import { DiagnosticError } from "../components/diagnostic-error.js";
+import { runtimeAppEnvironment } from "../env.js";
+import { captureServerFailure, timedConvexAction } from "../lib/diagnostics.js";
 
 export const Route = createFileRoute("/")({ component: HomePage });
 
 function HomePage() {
   const { t } = useLingui();
   const samples = useQuery(api.sample.list, {});
+  const failForDiagnostics = useAction(api.sample.failForDiagnostics);
+  const [diagnosticCode, setDiagnosticCode] = useState<string | undefined>();
+  const [failureAttempted, setFailureAttempted] = useState(false);
+
+  const triggerFailure = async (): Promise<void> => {
+    setFailureAttempted(false);
+    setDiagnosticCode(undefined);
+    try {
+      await timedConvexAction("sample:failForDiagnostics", () => failForDiagnostics({}));
+    } catch (error) {
+      const payload: unknown =
+        error !== null && typeof error === "object" && "data" in error ? error.data : undefined;
+      const candidate =
+        payload !== null && typeof payload === "object" && "diagnosticCode" in payload
+          ? payload.diagnosticCode
+          : undefined;
+      const parsed = diagnosticCodeSchema.safeParse(candidate);
+      if (parsed.success) {
+        setDiagnosticCode(parsed.data);
+        captureServerFailure(parsed.data);
+      }
+      setFailureAttempted(true);
+    }
+  };
 
   return (
     <section
@@ -31,6 +61,26 @@ function HomePage() {
         </p>
       </div>
       <SampleList samples={samples} />
+      {runtimeAppEnvironment() === "dev" ? (
+        <div className="grid max-w-xl gap-4">
+          <Button
+            type="button"
+            onClick={() => {
+              void triggerFailure();
+            }}
+          >
+            {t({ id: "diagnostics.demo.trigger", message: "Test error reporting" })}
+          </Button>
+          {failureAttempted ? (
+            <DiagnosticError
+              code={diagnosticCode}
+              onRetry={() => {
+                void triggerFailure();
+              }}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

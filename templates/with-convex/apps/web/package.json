@@ -40,15 +40,16 @@
     "i18n:extract": "lingui extract --config lingui.config.ts"
   },
   "dependencies": {
+    "@convex-dev/better-auth": "catalog:",
     "@__APP_SLUG__/auth": "workspace:*",
     "@__APP_SLUG__/convex": "workspace:*",
     "@__APP_SLUG__/env": "workspace:*",
-    "@convex-dev/better-auth": "catalog:",
     "@fontsource-variable/geist": "catalog:",
     "@fontsource-variable/geist-mono": "catalog:",
     "@hugeicons/core-free-icons": "catalog:",
     "@lingui/core": "catalog:",
     "@lingui/react": "catalog:",
+    "@q9labsai/diagnostics": "^0.3.0",
     "@q9labsai/ui": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",

@@ -181,7 +181,7 @@ export async function runCli(argv: readonly string[]): Promise<void> {
     .action(startCreateCommand);
 
   cli.help();
-  cli.version("0.1.0");
+  cli.version("0.3.0");
   cli.parse(["node", "create-q9stack", ...argv]);
   if (
     argv.includes("--help") ||

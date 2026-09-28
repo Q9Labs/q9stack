@@ -10,6 +10,7 @@ import { alwaysTrigger } from "./trigger.js";
 export interface HygieneOptions {
   readonly commitScriptPath?: string;
   readonly configPath?: string;
+  readonly requiredScripts?: readonly string[];
 }
 
 interface PackageJsonData {
@@ -216,7 +217,7 @@ function scriptFindings(
 
 function scriptAliases(text: string): readonly string[] {
   const aliases = new Set<string>();
-  for (const match of text.matchAll(/\blanes\.(typecheck|test|build)\s*\(/gu)) {
+  for (const match of text.matchAll(/\blanes\.(typecheck|test|build)\s*\(\s*\)/gu)) {
     const alias = match[1];
     if (alias !== undefined) {
       aliases.add(alias);
@@ -369,8 +370,9 @@ function missingScriptFindings(
   path: string,
   text: string,
   root: PackageJsonData,
+  requiredScripts: readonly string[] = [],
 ): readonly LaneFinding[] {
-  return scriptAliases(text)
+  return [...new Set([...scriptAliases(text), ...requiredScripts])]
     .filter((alias) => !root.scripts.has(alias))
     .map((alias) => ({
       file: path,
@@ -383,6 +385,7 @@ async function gateFileFindings(
   repoRoot: string,
   root: PackageJsonData,
   files: readonly (readonly [string, string])[],
+  requiredScripts: readonly string[] = [],
 ): Promise<readonly LaneFinding[]> {
   const findings = await Promise.all(
     files.map(async ([path, label]) => {
@@ -401,7 +404,10 @@ async function gateFileFindings(
       if (text === undefined) {
         return [];
       }
-      return [...gateCommandFindings(path, text), ...missingScriptFindings(path, text, root)];
+      return [
+        ...gateCommandFindings(path, text),
+        ...missingScriptFindings(path, text, root, label === "config" ? requiredScripts : []),
+      ];
     }),
   );
   return findings.flat();
@@ -431,7 +437,12 @@ async function runHygiene(context: LaneContext, options: HygieneOptions): Promis
   ] as const;
   const findings = [
     ...(await manifestFindings(context.repoRoot, rootLoad.value, manifestsLoad.value)),
-    ...(await gateFileFindings(context.repoRoot, rootLoad.value.data, filesToInspect)),
+    ...(await gateFileFindings(
+      context.repoRoot,
+      rootLoad.value.data,
+      filesToInspect,
+      options.requiredScripts,
+    )),
   ];
 
   return {

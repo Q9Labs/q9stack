@@ -36,9 +36,7 @@ catalog:
   wrangler: 4.138.0
   convex: 1.46.0
   "@convex-dev/better-auth": 0.12.5
-  # GHSA-qq9h-g4jm-xgf3 does not apply (no magic-link/email-OTP plugin); see osv-baseline.json.
-  # Pinned: @convex-dev/better-auth 0.12.5 types break against better-auth 1.6.16+.
-  "better-auth": 1.6.15
+  better-auth: 1.6.22
   "convex-test": 0.0.59
   vitest: 5.0.1
   "@playwright/test": 1.63.0
@@ -57,22 +55,29 @@ catalog:
   cspell: 10.3.3
   lefthook: 2.1.14
   typescript: 7.0.2
-  "@q9labsai/config-depcruise": ^0.1.0
-  "@q9labsai/config-oxlint": ^0.1.0
-  "@q9labsai/config-semgrep": ^0.2.0
-  "@q9labsai/config-tsconfig": ^0.1.0
-  "@q9labsai/cli": ^0.2.0
-  "@q9labsai/env": ^0.1.0
-  "@q9labsai/gates": ^0.2.0
-  "@q9labsai/ui": ^0.1.0
+  "@q9labsai/config-depcruise": ^0.3.0
+  "@q9labsai/config-oxlint": ^0.3.0
+  "@q9labsai/config-semgrep": ^0.3.0
+  "@q9labsai/config-tsconfig": ^0.3.0
+  "@q9labsai/cli": ^0.3.0
+  "@q9labsai/env": ^0.3.0
+  "@q9labsai/gates": ^0.3.0
+  "@q9labsai/ui": ^0.3.0
 
 peerDependencyRules:
   allowedVersions:
-    # Better Auth 1.6.15's Vitest peer covers its own test suite; the scaffold runs Vitest 5.
+    # Better Auth's declared Vitest peer stops at 4; the scaffold runs Vitest 5.
     "better-auth>vitest": "5"
 
+# dependency-cruiser 18 needs TypeScript <7 to analyze .ts/.tsx files.
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3
+
 overrides:
-  # GHSA-q8mj-m7cp-5q26: qs < 6.15.2 DoS, pulled via stryker's typed-rest-client.
-  qs: 6.15.3
+  # Fix qs advisories GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g, and
+  # GHSA-x5fp-wj9c-mxmx in the transitive Stryker typed-rest-client dependency.
+  qs: 6.16.0
   # Keep the Effect type identity shared with the currently published q9 packages.
   effect: "catalog:"

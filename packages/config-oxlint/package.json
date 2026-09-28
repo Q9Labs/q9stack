@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/config-oxlint",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Shareable Oxlint and Oxfmt configurations for q9labs projects",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/config-oxlint#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

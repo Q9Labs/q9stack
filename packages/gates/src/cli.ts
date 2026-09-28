@@ -24,6 +24,8 @@ interface RunCliOptions extends ConfigOption {
   readonly base?: string;
   readonly full?: boolean;
   readonly lane?: string | readonly string[];
+  readonly files?: string | readonly string[];
+  readonly target?: string | readonly string[];
   readonly concurrency?: string;
   readonly json?: boolean;
   readonly paranoid?: boolean;
@@ -42,6 +44,39 @@ function laneIds(value: RunCliOptions["lane"]): readonly string[] {
     return [];
   }
   return typeof value === "string" ? [value] : value;
+}
+
+function filePaths(value: RunCliOptions["files"]): readonly string[] | undefined {
+  if (value !== undefined) {
+    const paths = typeof value === "string" ? [value] : value;
+    if (paths.length === 0) {
+      throw new Error("--files requires at least one path.");
+    }
+    return paths;
+  }
+  const environmentFiles = process.env["GATE_FILES"];
+  if (environmentFiles === undefined) {
+    return undefined;
+  }
+  const paths = environmentFiles
+    .split(/[\r\n,]/u)
+    .map((path) => path.trim())
+    .filter((path) => path.length > 0);
+  if (paths.length === 0) {
+    throw new Error("GATE_FILES must contain at least one path.");
+  }
+  return paths;
+}
+
+function targetName(value: RunCliOptions["target"]): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const names = typeof value === "string" ? [value] : value;
+  if (names.length !== 1) {
+    throw new Error("--target may be provided only once.");
+  }
+  return names[0];
 }
 
 function concurrency(value: string | undefined): number | `${number}%` | undefined {
@@ -71,6 +106,8 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
     .option("--base <ref>", "Use changes since a Git base ref")
     .option("--full", "Run every configured lane")
     .option("--lane <id>", "Run a lane explicitly; may be repeated")
+    .option("--files <path>", "Use explicit changed files instead of the Git diff; may be repeated")
+    .option("--target <name>", "Narrow changed files and workspace roots to a configured target")
     .option("--concurrency <number-or-percent>", "Override worker concurrency")
     .option("--json", "Also print gate.report.json")
     .option("--paranoid", "Fail a lane that mutates the worktree")
@@ -79,12 +116,16 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
       const repoRoot = process.cwd();
       const config = await loadGateConfig(repoRoot, options.config);
       const requestedConcurrency = concurrency(options.concurrency);
+      const files = filePaths(options.files);
+      const target = targetName(options.target);
       exitCode = await runCommand({
         repoRoot,
         config,
         exec: executeCommand,
         staged: options.staged ?? false,
         full: options.full ?? false,
+        ...(files === undefined ? {} : { files }),
+        ...(target === undefined ? {} : { target }),
         lanes: laneIds(options.lane),
         json: options.json ?? false,
         paranoid: options.paranoid ?? false,

@@ -48,6 +48,16 @@ msgid "home.badge"
 msgstr "Convex sample data"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.copied"
+msgstr "Copied"
+
+#. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.copy"
+msgstr "Copy code"
+
+#. js-lingui-explicit-id
 #: src/routes/sign-up.tsx
 msgid "auth.signup.title"
 msgstr "Create an account"
@@ -56,6 +66,11 @@ msgstr "Create an account"
 #: src/components/localized-shell.tsx
 msgid "shell.account"
 msgstr "Current account"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "home.title"
+msgstr "__APP_NAME__"
 
 #. js-lingui-explicit-id
 #: src/components/changelog-menu-item.tsx
@@ -93,14 +108,14 @@ msgid "home.samples.empty"
 msgstr "No samples yet."
 
 #. js-lingui-explicit-id
-#: src/routes/index.tsx
-msgid "home.samples.published"
-msgstr "Published"
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.without_code"
+msgstr "Please try again. A diagnostic code is not available right now."
 
 #. js-lingui-explicit-id
 #: src/routes/index.tsx
-msgid "home.title"
-msgstr "__APP_NAME__"
+msgid "home.samples.published"
+msgstr "Published"
 
 #. js-lingui-explicit-id
 #: src/components/localized-shell.tsx
@@ -123,14 +138,34 @@ msgid "changelog.type.security"
 msgstr "Security"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.with_code"
+msgstr "Share this diagnostic code with support so we can investigate."
+
+#. js-lingui-explicit-id
 #: src/routes/sign-in.tsx
 msgid "auth.login.title"
 msgstr "Sign in"
 
 #. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.title"
+msgstr "Something went wrong"
+
+#. js-lingui-explicit-id
 #: src/components/locale-switcher.tsx
 msgid "shell.language"
 msgstr "Switch language"
+
+#. js-lingui-explicit-id
+#: src/routes/index.tsx
+msgid "diagnostics.demo.trigger"
+msgstr "Test error reporting"
+
+#. js-lingui-explicit-id
+#: src/components/diagnostic-error.tsx
+msgid "diagnostics.error.retry"
+msgstr "Try again"
 
 #. js-lingui-explicit-id
 #: src/components/changelog-menu-item.tsx

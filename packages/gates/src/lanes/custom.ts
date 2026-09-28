@@ -1,4 +1,5 @@
-import type { GateCategory, GateLane, LaneRunner, LaneTrigger } from "../core/types.js";
+import type { DoctorLane, ToolRequirement } from "../adapters/tool.js";
+import type { GateCategory, GateLane, LaneRunner, LaneTriggerSpec } from "../core/types.js";
 import { categoryTrigger } from "./trigger.js";
 
 export interface CustomLaneOptions {
@@ -7,15 +8,16 @@ export interface CustomLaneOptions {
   readonly triggers: readonly GateCategory[] | GateLane["triggers"];
   readonly run: string | LaneRunner;
   readonly exclusive?: boolean;
+  readonly doctorTools?: readonly ToolRequirement[];
 }
 
 function isCategoryList(value: CustomLaneOptions["triggers"]): value is readonly GateCategory[] {
-  return typeof value !== "function";
+  return Array.isArray(value);
 }
 
-export function custom(options: CustomLaneOptions): GateLane {
+export function custom(options: CustomLaneOptions): DoctorLane {
   let categories: readonly GateCategory[] | undefined;
-  let triggers: LaneTrigger;
+  let triggers: LaneTriggerSpec;
   if (isCategoryList(options.triggers)) {
     categories = options.triggers;
     triggers = categoryTrigger(categories);
@@ -53,5 +55,6 @@ export function custom(options: CustomLaneOptions): GateLane {
     run,
     ...(categories === undefined ? {} : { categories }),
     ...(options.exclusive === undefined ? {} : { exclusive: options.exclusive }),
+    doctorTools: options.doctorTools ?? [],
   };
 }

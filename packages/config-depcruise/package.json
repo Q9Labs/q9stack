@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/config-depcruise",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Hexagonal dependency-cruiser rules for q9labs projects",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/config-depcruise#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",
@@ -33,15 +33,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "dependency-cruiser": "catalog:"
-  },
   "devDependencies": {
     "@q9labsai/config-tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "dependency-cruiser": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "dependency-cruiser": "^18.2.0"
   },
   "engines": {
     "node": ">=24"

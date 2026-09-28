@@ -18,6 +18,7 @@
     "dev:status": "q9 dev status",
     "dev:logs": "q9 dev logs",
     "dev:stop": "q9 dev stop",
+    "diag": "q9 diag",
     "web:dev": "pnpm --filter @__APP_SLUG__/web run dev",
     "build": "pnpm run convex:codegen && turbo run build",
     "typecheck": "pnpm run convex:codegen && pnpm run typecheck:convex && turbo run typecheck && pnpm run typecheck:fixtures",
@@ -44,6 +45,7 @@
   "dependencies": {
     "@convex-dev/better-auth": "catalog:",
     "@faker-js/faker": "catalog:",
+    "@q9labsai/diagnostics": "^0.3.0",
     "better-auth": "catalog:",
     "convex": "catalog:"
   },

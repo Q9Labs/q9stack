@@ -97,16 +97,16 @@ catalog:
   "@size-limit/file": 14.0.0
   react-doctor: 0.9.14
   # published q9 packages; templates consume these version pins
-  "@q9labsai/gates": 0.1.0
-  "@q9labsai/diagnostics": 0.1.0
-  "@q9labsai/config-tsconfig": 0.1.0
-  "@q9labsai/config-oxlint": 0.1.0
-  "@q9labsai/config-semgrep": 0.1.0
-  "@q9labsai/config-depcruise": 0.1.0
-  "@q9labsai/ui": 0.1.0
-  "@q9labsai/ai": 0.1.0
-  "@q9labsai/voice": 0.1.0
-  "@q9labsai/env": 0.1.0
+  "@q9labsai/gates": 0.3.0
+  "@q9labsai/diagnostics": 0.3.0
+  "@q9labsai/config-tsconfig": 0.3.0
+  "@q9labsai/config-oxlint": 0.3.0
+  "@q9labsai/config-semgrep": 0.3.0
+  "@q9labsai/config-depcruise": 0.3.0
+  "@q9labsai/ui": 0.3.0
+  "@q9labsai/ai": 0.3.0
+  "@q9labsai/voice": 0.3.0
+  "@q9labsai/env": 0.3.0
 
 # dependency-cruiser 18 needs the JS TypeScript compiler API (<7). Root typescript is 7 (tsgo);
 # give depcruise its own parser-only TypeScript so it can cruise .ts/.tsx sources.

@@ -124,4 +124,37 @@ describe("Convex auth adapter", () => {
       },
     });
   });
+
+  it("accepts the numeric expiration returned by the local Better Auth endpoint", async () => {
+    const expiresAt = Date.parse("2026-08-25T00:00:00.000Z");
+    const authOperations: BetterAuthOperations = {
+      getSession: async () => ({
+        data: {
+          session: { id: "local-session", expiresAt },
+          user: { id: "local-user", email: "member@example.invalid" },
+        },
+        error: null,
+      }),
+      requestPasswordReset: async () => ({ data: null, error: null }),
+      signIn: { email: async () => ({ data: null, error: null }) },
+      signOut: async () => ({ data: null, error: null }),
+      signUp: { email: async () => ({ data: null, error: null }) },
+    };
+    const client = createAuthAdapter({
+      authClient: authOperations,
+      convex: { query: async () => [] },
+    });
+
+    await expect(client.getSession()).resolves.toEqual({
+      ok: true,
+      value: {
+        status: "authenticated",
+        session: {
+          id: "local-session",
+          expiresAt: "2026-08-25T00:00:00.000Z",
+          account: { id: "local-user", email: "member@example.invalid", role: "member" },
+        },
+      },
+    });
+  });
 });

@@ -68,6 +68,18 @@ describe("DiagnosticEvent/v1", () => {
     expect(JSON.stringify(event)).not.toContain("private");
   });
 
+  it("accepts the root route template and rejects raw paths", () => {
+    expect(redactDiagnosticAttributes({ route_template: "/" }).attributes).toEqual({
+      route_template: "/",
+    });
+    expect(redactDiagnosticAttributes({ route_template: "/tasks/:task_id" }).redactedKeys).toEqual(
+      [],
+    );
+    expect(redactDiagnosticAttributes({ route_template: "/tasks/42?x=1" }).redactedKeys).toEqual([
+      "route_template",
+    ]);
+  });
+
   it("keeps only location frames and fails closed on unknown ID classes", () => {
     expect(
       safeIdSchema.safeParse({ idClass: "product.database", value: "safe-looking-id" }).success,

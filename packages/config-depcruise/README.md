@@ -12,6 +12,8 @@ imports so workspace packages are consumed through their public package names.
 pnpm add -D @q9labsai/config-depcruise dependency-cruiser
 ```
 
+`dependency-cruiser` is a peer dependency so the product owns the CLI version.
+
 ## Configuration
 
 The input paths accept dependency-cruiser regular expressions. Glob-style
@@ -69,11 +71,10 @@ packageExtensions:
       typescript: 6.0.3
 ```
 
-Keep the extension in workspaces that use TypeScript 7. The q9gate depcruise lane prefers the
-config package's dependency-cruiser binary when it is available, then verifies that TypeScript
-sources were included in the report. It fails with an install hint instead of silently passing
-when `.ts` or `.tsx` files exist but no TypeScript modules were cruised. The rule tests exercise
-both TypeScript and TSX fixtures.
+Keep the extension in workspaces that use TypeScript 7. The q9gate depcruise lane resolves a
+runnable dependency-cruiser candidate, then verifies that TypeScript sources were included in the
+report. It fails with an install hint instead of silently passing when `.ts` or `.tsx` files exist
+but no TypeScript modules were cruised. The rule tests exercise both TypeScript and TSX fixtures.
 
 ## CJS and ESM
 

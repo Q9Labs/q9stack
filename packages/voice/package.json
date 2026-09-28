@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/voice",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Provider-neutral browser voice call clients for q9labs applications",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/voice#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

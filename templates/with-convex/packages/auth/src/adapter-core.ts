@@ -58,7 +58,7 @@ interface ErrorDetails {
 
 interface SessionData {
   readonly session: {
-    readonly expiresAt: Date | string;
+    readonly expiresAt: Date | string | number;
     readonly id: string;
   };
   readonly user: {
@@ -153,7 +153,11 @@ function isSessionData(value: unknown): value is SessionData {
     !("id" in session) ||
     typeof session.id !== "string" ||
     !("expiresAt" in session) ||
-    !(typeof session.expiresAt === "string" || session.expiresAt instanceof Date) ||
+    !(
+      typeof session.expiresAt === "string" ||
+      session.expiresAt instanceof Date ||
+      (typeof session.expiresAt === "number" && Number.isFinite(session.expiresAt))
+    ) ||
     !("id" in user) ||
     typeof user.id !== "string" ||
     !("email" in user) ||
@@ -186,9 +190,9 @@ function mapSession(value: unknown): AuthResult<AuthSession> {
   const role = isAuthRole(roleValue) ? roleValue : "member";
 
   const expiresAt =
-    value.session.expiresAt instanceof Date
-      ? value.session.expiresAt.toISOString()
-      : value.session.expiresAt;
+    typeof value.session.expiresAt === "string"
+      ? value.session.expiresAt
+      : new Date(value.session.expiresAt).toISOString();
 
   return success({
     account: {

@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/config-semgrep",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Shareable Semgrep rule packs for q9labs TypeScript and JavaScript projects",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/config-semgrep#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

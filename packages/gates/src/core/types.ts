@@ -77,11 +77,15 @@ export type GateExec = (
 export interface TriggerContext {
   readonly classification: Classification;
   readonly changedFiles: readonly string[];
+  readonly allChangedFiles: readonly string[];
   readonly scope: GateScope;
+  readonly target: string | undefined;
 }
 
 export interface LaneContext extends TriggerContext {
   readonly repoRoot: string;
+  readonly workspaceRoots?: readonly string[];
+  readonly explicitFileSelection?: boolean;
   readonly base?: string;
   readonly exec: GateExec;
 }
@@ -99,12 +103,13 @@ export interface BaselineSpec {
 }
 
 export type LaneTrigger = (context: TriggerContext) => boolean | string;
+export type LaneTriggerSpec = LaneTrigger | "always";
 export type LaneRunner = (context: LaneContext) => Promise<LaneResult>;
 
 export interface GateLane {
   readonly id: string;
   readonly title: string;
-  readonly triggers: LaneTrigger;
+  readonly triggers: LaneTriggerSpec;
   readonly run: LaneRunner;
   readonly categories?: readonly GateCategory[];
   readonly exclusive?: boolean;
@@ -113,6 +118,7 @@ export interface GateLane {
 
 export interface GateConfig {
   readonly workspaceRoots: readonly string[];
+  readonly targets?: Readonly<Record<string, readonly string[]>>;
   readonly classifiers?: ClassifierConfig;
   readonly concurrency?: number | `${number}%`;
   readonly lanes: readonly GateLane[];

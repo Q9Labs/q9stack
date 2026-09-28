@@ -5,15 +5,13 @@ import { createAuthClient as createBetterAuthClient } from "better-auth/react";
 import { createAuthAdapter, type ConvexAuthQueryClient } from "./adapter-core.js";
 import type { AuthClient } from "./client.js";
 
-// Annotated with the provider's own client type: the inferred type is not
-// portable for dts emission (TS2883) and this guarantees provider compatibility.
-const createBetterAuth = (baseURL: string): ConvexProviderAuthClient =>
+const createBetterAuth = (baseURL: string) =>
   createBetterAuthClient({
     baseURL,
     plugins: [convexClient()],
   });
 
-export type ConvexBetterAuthClient = ReturnType<typeof createBetterAuth>;
+export type ConvexBetterAuthClient = ConvexProviderAuthClient;
 
 export interface ConvexAuthClientOptions {
   readonly baseURL: string;
@@ -33,6 +31,7 @@ export function createConvexAuthClient(options: ConvexAuthClientOptions): Convex
   const authClient = createBetterAuth(options.baseURL);
   return {
     auth: createAuthAdapter({ authClient, convex: options.convex }),
+    // @ts-expect-error because Convex narrows useSession().data to never with Better Auth 1.6.22.
     authClient,
   };
 }
