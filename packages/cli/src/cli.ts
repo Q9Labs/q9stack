@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import cac from "cac";
 
+import packageJson from "../package.json" with { type: "json" };
 import {
   addEntry,
   exportWhatsNew,
@@ -298,7 +299,7 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
       );
     });
   cli.help();
-  cli.version("0.1.0");
+  cli.version(packageJson.version);
   const parsedArgv = [...argv];
   if (
     ["tracker", "dev", "changelog"].includes(parsedArgv[2] ?? "") &&

@@ -1,5 +1,12 @@
 # @q9labsai/gates
 
+## 0.3.1
+
+### Patch Changes
+
+- 0e0a664: Read CLI versions from each package manifest, preserve and annotate newly accepted OSV findings, and normalize OSV paths through realpath.
+- 4793790: Pass the resolved base to React Doctor during full gate runs.
+
 ## 0.3.0
 
 ### Minor Changes

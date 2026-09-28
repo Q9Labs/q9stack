@@ -97,14 +97,20 @@ export interface LaneResult {
   readonly baseline?: LaneBaselineReport;
 }
 
-export interface BaselineSpec {
-  readonly path: string;
-  readonly format?: "json" | "json-document" | "text" | "directory";
-}
-
 export type LaneTrigger = (context: TriggerContext) => boolean | string;
 export type LaneTriggerSpec = LaneTrigger | "always";
 export type LaneRunner = (context: LaneContext) => Promise<LaneResult>;
+export type BaselineAcceptance = (
+  repoRoot: string,
+  message: string,
+  exec: GateExec,
+) => Promise<string>;
+
+export interface BaselineSpec {
+  readonly path: string;
+  readonly format?: "json" | "json-document" | "text" | "directory";
+  readonly accept?: BaselineAcceptance;
+}
 
 export interface GateLane {
   readonly id: string;

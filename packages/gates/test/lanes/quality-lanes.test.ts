@@ -1,5 +1,5 @@
 // cspell:ignore adress pathspecs
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -391,6 +391,60 @@ describe("quality lanes", () => {
     expect(laneResult.findings).toHaveLength(1);
   });
 
+  it("matches OSV sources and repository roots through symlinked temp paths", async () => {
+    const root = await fixture();
+    const symlinkRoot = `${root}-alias`;
+    roots.push(symlinkRoot);
+    await symlink(root, symlinkRoot, "dir");
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await writeFile(
+      join(root, "osv-baseline.json"),
+      `${JSON.stringify(
+        {
+          entries: [
+            {
+              ecosystem: "npm",
+              id: "GHSA-test",
+              package: "unsafe",
+              severity: "UNKNOWN",
+              source: "pnpm-lock.yaml",
+              summary: "",
+              version: "1.0.0",
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    let sourcePath = join(symlinkRoot, "pnpm-lock.yaml");
+    const report = () => ({
+      results: [
+        {
+          source: { path: sourcePath },
+          packages: [
+            {
+              package: { ecosystem: "npm", name: "unsafe", version: "1.0.0" },
+              vulnerabilities: [{ id: "GHSA-test" }],
+            },
+          ],
+        },
+      ],
+    });
+    const exec = fakeExec((command, args) =>
+      command === "osv-scanner" && args[0] === "--version"
+        ? result("osv-scanner --version", "2.3.8\n")
+        : result("osv-scanner scan", JSON.stringify(report())),
+    );
+
+    const sourceSymlinkResult = await osv().run(context(root, exec, ["pnpm-lock.yaml"]));
+    sourcePath = join(root, "pnpm-lock.yaml");
+    const rootSymlinkResult = await osv().run(context(symlinkRoot, exec, ["pnpm-lock.yaml"]));
+
+    expect(sourceSymlinkResult.status).toBe("passed");
+    expect(rootSymlinkResult.status).toBe("passed");
+  });
+
   it("lets OSV exclude configuration replace the default directories", async () => {
     const root = await fixture();
     await writeFile(join(root, "osv-baseline.json"), '{"entries":[]}\n');
@@ -547,6 +601,38 @@ describe("quality lanes", () => {
     expect(laneResult.status).toBe("failed");
     expect(messages).toContain("pnpm add -D react-doctor");
     expect(messages).toContain("pnpm add -D react-scan");
+  });
+
+  it("passes a known base to React Doctor during a full run", async () => {
+    const root = await fixture();
+    const calls: string[][] = [];
+    const exec = fakeExec((command, args) => {
+      calls.push([command, ...args]);
+      return result(`${command} ${args.join(" ")}`);
+    });
+
+    const laneResult = await reactDoctor().run(
+      context(root, exec, ["apps/web/src/page.tsx"], "full", false, "base-ref"),
+    );
+    const doctorCall = calls.find((call) => call[0] === "react-doctor" && call[1] === ".");
+
+    expect(laneResult.status).toBe("passed");
+    expect(doctorCall).toContain("--base");
+    expect(doctorCall).toContain("base-ref");
+  });
+
+  it("does not pass a base to React Doctor during a full run when none is known", async () => {
+    const root = await fixture();
+    const calls: string[][] = [];
+    const exec = fakeExec((command, args) => {
+      calls.push([command, ...args]);
+      return result(`${command} ${args.join(" ")}`);
+    });
+
+    await reactDoctor().run(context(root, exec, ["apps/web/src/page.tsx"], "full", false, null));
+    const doctorCall = calls.find((call) => call[0] === "react-doctor" && call[1] === ".");
+
+    expect(doctorCall).not.toContain("--base");
   });
 
   it("passes with an optional-tool finding when only react-scan is unavailable", async () => {

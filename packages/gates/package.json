@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/gates",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Diff-aware static-check orchestration for q9labs repositories",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/gates#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

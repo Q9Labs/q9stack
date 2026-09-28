@@ -38,7 +38,7 @@ function doctorArgs(context: LaneContext): readonly string[] {
     "--no-score",
     "--verbose",
   ];
-  if (context.base !== undefined && context.scope !== "full") {
+  if (context.base !== undefined) {
     args.push("--base", context.base);
   }
   return args;

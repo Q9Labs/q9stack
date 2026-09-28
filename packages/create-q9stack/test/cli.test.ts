@@ -2,11 +2,26 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
+import packageJson from "../package.json" with { type: "json" };
 import { buildScaffoldOptions, runCli } from "../src/cli.js";
 
 describe("create-q9stack CLI", () => {
+  test("reports the version from its package manifest", async () => {
+    const output: string[] = [];
+    const info = vi.spyOn(console, "info").mockImplementation((...values: unknown[]) => {
+      output.push(values.join(" "));
+    });
+
+    try {
+      await runCli(["--version"]);
+      expect(output.join("")).toContain(`create-q9stack/${packageJson.version}`);
+    } finally {
+      info.mockRestore();
+    }
+  });
+
   test("builds scaffold options from CLI values", () => {
     const options = buildScaffoldOptions("Demo App", "demo-app", "with-convex", {
       dir: "/tmp/create-q9stack",

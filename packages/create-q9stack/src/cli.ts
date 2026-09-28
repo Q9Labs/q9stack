@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { cac } from "cac";
 import prompts from "prompts";
 
+import packageJson from "../package.json" with { type: "json" };
 import { scaffoldProject, type ScaffoldProjectOptions } from "./adapters/scaffold.js";
 import type { LicenseKind } from "./core/license.js";
 import type { TemplateVariant } from "./core/plan.js";
@@ -181,7 +182,7 @@ export async function runCli(argv: readonly string[]): Promise<void> {
     .action(startCreateCommand);
 
   cli.help();
-  cli.version("0.3.0");
+  cli.version(packageJson.version);
   cli.parse(["node", "create-q9stack", ...argv]);
   if (
     argv.includes("--help") ||

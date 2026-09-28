@@ -1,5 +1,11 @@
 # create-q9stack
 
+## 0.3.1
+
+### Patch Changes
+
+- 0e0a664: Read CLI versions from each package manifest, preserve and annotate newly accepted OSV findings, and normalize OSV paths through realpath.
+
 ## 0.3.0
 
 ### Minor Changes

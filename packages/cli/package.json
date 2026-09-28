@@ -1,6 +1,6 @@
 {
   "name": "@q9labsai/cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Project tracker, development process, and changelog tools for q9labs agents",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/cli#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

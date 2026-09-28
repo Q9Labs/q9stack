@@ -17,6 +17,7 @@ export type {
 } from "./core/report.js";
 export { gateCategories } from "./core/types.js";
 export type {
+  BaselineAcceptance,
   BaselineSpec,
   Classification,
   ClassifiedCategory,

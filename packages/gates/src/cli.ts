@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import cac from "cac";
 
+import packageJson from "../package.json" with { type: "json" };
 import { loadGateConfig } from "./adapters/config-loader.js";
 import { executeCommand } from "./adapters/process.js";
 import { writeErrorLine } from "./adapters/terminal.js";
@@ -168,11 +169,17 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
       }
       const repoRoot = process.cwd();
       const config = await loadGateConfig(repoRoot, options.config);
-      exitCode = await acceptBaselineCommand(repoRoot, config, lane, options.message.trim());
+      exitCode = await acceptBaselineCommand(
+        repoRoot,
+        config,
+        lane,
+        options.message.trim(),
+        executeCommand,
+      );
     });
 
   cli.help();
-  cli.version("0.1.0");
+  cli.version(packageJson.version);
   cli.parse([...argv], { run: false });
   await cli.runMatchedCommand();
   return exitCode;

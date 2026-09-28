@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import packageJson from "../package.json" with { type: "json" };
 import { addEntry, exportWhatsNew, parseChangelog, release } from "../src/changelog.js";
 import { validateTracker } from "../src/tracker.js";
 
@@ -63,6 +64,13 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
+});
+
+it("reports the version from its package manifest", () => {
+  const result = cli("--version");
+
+  expect(result.status).toBe(0);
+  expect(result.stdout.trim().startsWith(`q9/${packageJson.version}`)).toBe(true);
 });
 
 describe("tracker", () => {

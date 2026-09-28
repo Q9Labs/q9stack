@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import packageJson from "../../package.json" with { type: "json" };
 import { executeCommand } from "../../src/adapters/process.js";
 import { runCli } from "../../src/cli.js";
 import { validateGateReport } from "../../src/core/report.js";
@@ -16,6 +17,9 @@ describe("q9gate CLI", { concurrent: false }, () => {
 
   beforeEach(() => {
     logs = [];
+    vi.spyOn(console, "info").mockImplementation((...values: unknown[]) => {
+      logs.push(values.join(" "));
+    });
     vi.spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
       logs.push(chunk.toString().trimEnd());
       return true;
@@ -46,6 +50,11 @@ describe("q9gate CLI", { concurrent: false }, () => {
     return root;
   }
 
+  it("reports the version from its package manifest", async () => {
+    await runCli(["node", "q9gate", "--version"]);
+    expect(logs.join("\n")).toContain(`q9gate/${packageJson.version}`);
+  });
+
   it("explains lane reasons for a file", async () => {
     await fixture();
     const exitCode = await runCli(["node", "q9gate", "why", "src/index.ts"]);
@@ -63,11 +72,17 @@ describe("q9gate CLI", { concurrent: false }, () => {
 
   it("runs a full gate and always writes a schema-v1 report", async () => {
     const root = await fixture();
+    const base = await executeCommand("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
+      cwd: root,
+    });
+    expect(base.failed).toBe(false);
+
     const exitCode = await runCli(["node", "q9gate", "run", "--full"]);
     expect(exitCode).toBe(0);
     const parsed: unknown = JSON.parse(await readFile(join(root, "gate.report.json"), "utf8"));
     const report = validateGateReport(parsed);
     expect(report.schemaVersion).toBe(1);
+    expect(report.base).toBe("origin/main");
     expect(report.summary).toEqual({ passed: 2, failed: 0, skipped: 0 });
   });
 

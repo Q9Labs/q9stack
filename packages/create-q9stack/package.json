@@ -1,6 +1,6 @@
 {
   "name": "create-q9stack",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Scaffold q9labs applications from the q9stack templates",
   "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/create-q9stack#readme",
   "bugs": "https://github.com/Q9Labs/q9stack/issues",

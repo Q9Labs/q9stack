@@ -98,10 +98,7 @@ async function runBase(options: RunCommandOptions, scope: GateScope): Promise<st
   if (scope === "branch") {
     return options.base ?? (await resolveDefaultBase(options.exec, options.repoRoot));
   }
-  if (scope === "staged") {
-    return optionalDefaultBase(options.exec, options.repoRoot);
-  }
-  return undefined;
+  return optionalDefaultBase(options.exec, options.repoRoot);
 }
 
 async function runFiles(
