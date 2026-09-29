@@ -27,6 +27,7 @@ export const UNKNOWN_REASONS = [
   "diagnostics_disabled",
   "permission_denied",
   "server_log_not_available",
+  "flow_run_lookup_unavailable",
   "unknown",
 ] as const;
 
@@ -44,6 +45,9 @@ export const ATTRIBUTE_KEYS = [
   "response_class",
   "stage",
   "outcome",
+  "flow",
+  "flow_run",
+  "flow_step",
   "size_bucket",
   "retry_count",
   "attempt",
@@ -250,6 +254,21 @@ export type SafeId = z.infer<typeof safeIdSchema>;
 export const visibilityGapSchema = z.strictObject({
   reason: z.enum(UNKNOWN_REASONS),
   detail: safeMessageSchema.optional(),
+  source: z
+    .string()
+    .min(1)
+    .max(96)
+    .regex(/^[a-zA-Z0-9_.:-]+$/)
+    .optional(),
+});
+export const serverLogLineSchema = z.strictObject({
+  occurredAt: z.number().int().min(0),
+  level: z.enum(["info", "warning", "error"]),
+  message: safeMessageSchema,
+});
+export const serverLogRecordSchema = serverLogLineSchema.extend({
+  traceId: diagnosticCodeSchema,
+  spanId: spanIdSchema,
 });
 export const serverSpanSchema = z.strictObject({
   traceId: diagnosticCodeSchema,
@@ -271,8 +290,32 @@ export const serverSpanSchema = z.strictObject({
   durationMs: z.number().finite().min(0).max(604_800_000).optional(),
   status: z.enum(["unset", "ok", "error"]),
   correlation: z.enum(["request_id", "trace_id", "heuristic", "unmatched"]),
+  kind: z.enum(["server", "client", "producer", "consumer", "internal"]).optional(),
+  serviceName: z
+    .string()
+    .min(1)
+    .max(96)
+    .regex(/^[a-zA-Z0-9_.:-]+$/)
+    .optional(),
+  attributes: diagnosticAttributesSchema.optional(),
+  logLines: z.array(serverLogLineSchema).max(100).optional(),
   safeStackFrames: z.array(safeStackFrameSchema).max(12).optional(),
 });
+export const flowStepResultSchema = z.strictObject({
+  id: z.string().min(1).max(96),
+  need: z.enum(["required", "conditional", "best_effort"]),
+  status: z.enum(["ok", "missing", "late", "out_of_order", "pending", "not_observable"]),
+  event: diagnosticEventSchema.optional(),
+  expectedDeadline: z.number().int().min(0).optional(),
+  observedAt: z.number().int().min(0).optional(),
+});
+export type FlowStepResult = z.infer<typeof flowStepResultSchema>;
+export const flowRunResultSchema = z.strictObject({
+  verdict: z.enum(["ok", "failed", "pending", "not_observable"]),
+  steps: z.array(flowStepResultSchema),
+  unexpected: z.array(diagnosticEventSchema),
+});
+export type FlowRunResult = z.infer<typeof flowRunResultSchema>;
 export const diagnosticTraceBriefSchema = z.strictObject({
   version: z.literal(1),
   code: diagnosticCodeSchema,
@@ -285,11 +328,28 @@ export const diagnosticTraceBriefSchema = z.strictObject({
   completeness: z.enum(["complete", "partial", "not_found", "expired"]),
   summary: safeMessageSchema,
   journeyTraceId: diagnosticCodeSchema.optional(),
-  events: z.array(diagnosticEventSchema).max(500),
-  serverSpans: z.array(serverSpanSchema).max(200),
-  errors: z.array(diagnosticEventSchema).max(100),
+  events: z.array(diagnosticEventSchema).max(1_000),
+  serverSpans: z.array(serverSpanSchema).max(1_000),
+  serverLogs: z.array(serverLogRecordSchema).max(1_000).optional(),
+  errors: z.array(diagnosticEventSchema).max(1_000),
   links: z.array(safeIdSchema).max(32),
   visibilityGaps: z.array(visibilityGapSchema).max(32),
+  flows: z
+    .array(
+      z.strictObject({
+        flow: z.string().min(1).max(96),
+        version: z.literal(1),
+        runId: z.string().min(1).max(96),
+        verdict: z.enum(["ok", "failed", "pending", "not_observable"]),
+        steps: z.array(flowStepResultSchema),
+        unexpected: z.array(diagnosticEventSchema).max(100),
+      }),
+    )
+    .optional(),
   truncated: z.boolean(),
+  nextCursor: z.string().min(1).max(262_144).optional(),
 });
 export type DiagnosticTraceBrief = z.infer<typeof diagnosticTraceBriefSchema>;
+
+export { checkFlowRun, flowDefinitionSchema } from "./flow.js";
+export type { FlowDefinition } from "./flow.js";

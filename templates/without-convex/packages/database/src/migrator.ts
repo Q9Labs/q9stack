@@ -3,11 +3,13 @@ import { Effect } from "effect";
 
 import initial from "../migrations/0001_init.js";
 import betterAuth from "../migrations/0002_better_auth.js";
+import diagnostics from "../migrations/0003_diagnostic_events.js";
 
 /** Migrations are registered explicitly so their order cannot drift. */
 export const migrationManifest: Migrator.Loader = Effect.succeed([
   [1, "init", Effect.succeed(initial)] as const,
   [2, "better_auth", Effect.succeed(betterAuth)] as const,
+  [3, "diagnostic_events", Effect.succeed(diagnostics)] as const,
 ]);
 
 /** Runs every forward migration not yet recorded by Effect SQL Migrator. */

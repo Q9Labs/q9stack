@@ -34,9 +34,11 @@ Configure `diag` in the project root `q9.config.json`:
 }
 ```
 
-Or use `{ "diag": { "adapter": "command", "command": ["node", "tools/trace-brief.mjs"] } }` for a product-owned read adapter. See the [Convex](../../recipes/diagnostics-convex.md) and [command](../../recipes/diagnostics-command.md) recipes.
+Or use `{ "diag": { "adapter": "command", "command": ["node", "tools/trace-brief.mjs"] } }` for a product-owned read adapter. Multiple sources can be combined as `{ "diag": { "sources": [{ "adapter": "command", "command": ["node", "tools/trace-brief.mjs"] }, { "adapter": "axiom", "org": "org-id", "traces": "trace-dataset", "logs": "log-dataset", "tokenEnv": "AXIOM_QUERY_TOKEN" }] } }`. The single-adapter form remains valid; mixing `adapter` and `sources` is invalid. See the [Convex](../../recipes/diagnostics-convex.md), [command](../../recipes/diagnostics-command.md), and [Axiom](../../recipes/diagnostics-axiom.md) recipes.
 
-`q9 diag trace <code> [--prod | --deployment <name>] [--json] [--no-logs] [--otlp [endpoint]]` reads a code from development by default. `--prod` is explicit. `--otlp` exports locally to `http://localhost:4318`; a remote origin requires `diag.otlp.allowedEndpoints` in `q9.config.json`. `q9 diag check` probes adapter installation and read access without requesting a customer trace. Exit codes: 0 found, 2 not found/expired, 3 configuration/argument error, 4 adapter/auth error. `chalkdiag:v1` episode references belong to `pnpm trace:inspect`.
+`q9 diag trace <code> [--prod | --deployment <name>] [--json] [--no-logs] [--limit <n>] [--after <cursor>] [--otlp [endpoint]]` reads a code from development by default. `--prod` is explicit. `--limit` accepts 1–1000; without it each page retains the existing caps of 500 events, 200 spans, and 100 errors. Pass the brief's opaque `nextCursor` to `--after` to read the next page. `--otlp` exports locally to `http://localhost:4318`; a remote origin requires `diag.otlp.allowedEndpoints` in `q9.config.json`. `q9 diag check` probes every source's installation and read access without requesting a customer trace. Exit codes: 0 found, 2 not found/expired, 3 configuration/argument error, 4 adapter/auth error. `chalkdiag:v1` episode references belong to `pnpm trace:inspect`.
+
+Optional `diagnostics/flows.json` is a JSON array of flow definitions, validated by both `diag check` and `diag trace`. When trace events name a `flow_run`, the CLI fetches that run's events across traces and prints step results before the ordinary events. See the [flows recipe](../../recipes/diagnostics-flows.md).
 
 ## Tracker
 

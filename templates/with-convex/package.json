@@ -45,7 +45,7 @@
   "dependencies": {
     "@convex-dev/better-auth": "catalog:",
     "@faker-js/faker": "catalog:",
-    "@q9labsai/diagnostics": "^0.3.0",
+    "@q9labsai/diagnostics": "^0.4.0",
     "better-auth": "catalog:",
     "convex": "catalog:"
   },

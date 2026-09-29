@@ -49,7 +49,7 @@
     "@hugeicons/core-free-icons": "catalog:",
     "@lingui/core": "catalog:",
     "@lingui/react": "catalog:",
-    "@q9labsai/diagnostics": "^0.3.0",
+    "@q9labsai/diagnostics": "^0.4.0",
     "@q9labsai/ui": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",

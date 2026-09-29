@@ -1,0 +1,6 @@
+{
+  "extends": "@q9labsai/config-tsconfig/tsconfig.node.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist" },
+  "include": ["src", "test", "tsdown.config.ts"],
+  "exclude": ["dist"]
+}

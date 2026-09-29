@@ -17,6 +17,7 @@ Follow the prompts to choose a project name and stack.
 - [create-q9stack](packages/create-q9stack/README.md) — scaffold a project from the q9stack templates.
 - [gates](packages/gates/README.md) — plan and run quality checks with the `q9gate` CLI.
 - [diagnostics](packages/diagnostics/README.md) — safe diagnostic code, event, and trace-brief contracts.
+- [diagnostics-server](packages/diagnostics-server/README.md) — Node/Effect tracing, redaction, and Postgres lookup.
 - [cli](packages/cli/README.md) — project-local agent commands, including `q9 diag`.
 - [config-depcruise](packages/config-depcruise/README.md) — reusable dependency-boundary rules.
 - [config-oxlint](packages/config-oxlint/README.md) — shared Oxlint and Oxfmt configuration.

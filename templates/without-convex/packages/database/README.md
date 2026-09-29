@@ -1,5 +1,9 @@
 # `@__APP_SLUG__/database`
 
+The `diagnostic_events` migration stores schema-validated diagnostic events for
+the command lookup. Schedule this retention query daily using a maintenance
+role: `DELETE FROM diagnostic_events WHERE occurred_at < (EXTRACT(EPOCH FROM now() - INTERVAL '14 days') * 1000)::bigint;`.
+
 The database package owns the PostgreSQL layer, append-only Effect SQL
 migrations, and the sample repository for the without-Convex overlay.
 

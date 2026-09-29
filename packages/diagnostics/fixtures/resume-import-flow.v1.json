@@ -1,0 +1,10 @@
+{
+  "id": "resume.import",
+  "version": 1,
+  "steps": [
+    { "id": "uploaded" },
+    { "id": "parsed", "after": ["uploaded"], "within": "2m" },
+    { "id": "result", "after": ["parsed"], "within": "1m", "oneOf": ["candidate_created", "duplicate", "failed"] },
+    { "id": "scored", "after": ["result:candidate_created"], "within": "5m", "need": "conditional" }
+  ]
+}

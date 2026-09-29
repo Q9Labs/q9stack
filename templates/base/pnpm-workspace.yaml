@@ -55,7 +55,7 @@ catalog:
   "@q9labsai/config-oxlint": ^0.3.0
   "@q9labsai/config-semgrep": ^0.3.0
   "@q9labsai/config-tsconfig": ^0.3.0
-  "@q9labsai/cli": ^0.3.0
+  "@q9labsai/cli": ^0.4.0
   "@q9labsai/env": ^0.3.0
   "@q9labsai/gates": ^0.3.0
   "@q9labsai/ui": ^0.3.0

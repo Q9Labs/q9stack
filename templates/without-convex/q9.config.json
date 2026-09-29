@@ -1,0 +1,6 @@
+{
+  "diag": {
+    "adapter": "command",
+    "command": ["q9-diag-pg"]
+  }
+}

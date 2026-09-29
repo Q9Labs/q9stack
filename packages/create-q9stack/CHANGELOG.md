@@ -1,5 +1,11 @@
 # create-q9stack
 
+## 0.4.0
+
+### Minor Changes
+
+- 9164926: Wire the non-Convex scaffold to the diagnostics server package and command lookup.
+
 ## 0.3.1
 
 ### Patch Changes

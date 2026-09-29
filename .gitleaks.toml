@@ -8,3 +8,7 @@ useDefault = true
 description = "Prose listing UI states ('auth screens: default/invalid/submitting') trips generic-api-key."
 regexTarget = "match"
 regexes = ['''auth screens: default/invalid/submitting''']
+
+[[allowlists]]
+description = "Raw dogfood session transcripts (multi-megabyte, already reviewed); decoding them stalls the scan."
+paths = ['''^scratchpad/dogfood/.*transcript''']

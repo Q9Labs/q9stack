@@ -1,5 +1,12 @@
 # @q9labsai/diagnostics
 
+## 0.4.0
+
+### Minor Changes
+
+- b82843c: Add multi-source diagnostic briefs, an Axiom query source, and trace paging with source-aware cursors and safe log lines.
+- f8c0346: Add validated diagnostic flow definitions, pure run checking, and CLI run lookup and reporting for Convex and command adapters.
+
 ## 0.3.0
 
 ### Minor Changes

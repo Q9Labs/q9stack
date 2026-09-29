@@ -7,12 +7,18 @@ import {
   diagnosticCodeSchema,
   diagnosticEventSchema,
   diagnosticTraceBriefSchema,
+  checkFlowRun,
+  flowDefinitionSchema,
   safeIdSchema,
   spanIdSchema,
   type DiagnosticEvent,
   type DiagnosticTraceBrief,
+  type FlowDefinition,
 } from "@q9labsai/diagnostics";
 import { z } from "zod";
+
+import { AxiomError, checkAxiom, readAxiomBrief } from "./diag/axiom.js";
+import { MergeError, mergeBriefs } from "./diag/merge.js";
 
 const exec = promisify(execFile);
 const otlpSchema = z.strictObject({ allowedEndpoints: z.array(z.url()).max(12).optional() });
@@ -31,14 +37,49 @@ const configSchema = z.discriminatedUnion("adapter", [
     command: z.array(z.string().min(1)).min(1).max(12),
     otlp: otlpSchema.optional(),
   }),
+  z
+    .strictObject({
+      adapter: z.literal("axiom"),
+      org: z
+        .string()
+        .min(1)
+        .max(96)
+        .regex(/^[a-zA-Z0-9_-]+$/),
+      traces: z
+        .string()
+        .min(1)
+        .max(96)
+        .regex(/^[a-zA-Z0-9_-]+$/)
+        .optional(),
+      logs: z
+        .string()
+        .min(1)
+        .max(96)
+        .regex(/^[a-zA-Z0-9_-]+$/)
+        .optional(),
+      tokenEnv: z
+        .string()
+        .min(1)
+        .max(96)
+        .regex(/^[A-Z_][A-Z0-9_]*$/),
+      window: z
+        .string()
+        .regex(/^[1-9][0-9]*[dh]$/)
+        .optional(),
+      otlp: otlpSchema.optional(),
+    })
+    .refine((value) => Boolean(value.traces ?? value.logs)),
 ]);
 type Config = z.infer<typeof configSchema>;
+type DiagConfig = { sources: Config[]; otlp: z.infer<typeof otlpSchema> | undefined };
 type Options = {
   prod: boolean;
   deployment: string | undefined;
   json: boolean;
   logs: boolean;
   otlp: string | undefined;
+  limit: number | undefined;
+  after: string | undefined;
 };
 
 export class DiagError extends Error {
@@ -68,8 +109,33 @@ function consumeFlag(flag: string, args: string[], options: Options): void {
       options.otlp = takeOtlpEndpoint(args);
       break;
     default:
-      throw new DiagError("Unknown diag option: " + flag, 3);
+      consumePageFlag(flag, args, options);
   }
+}
+
+function consumePageFlag(flag: string, args: string[], options: Options): void {
+  if (flag === "--limit") {
+    options.limit = takeLimit(args.shift());
+    return;
+  }
+  if (flag === "--after") {
+    options.after = takeAfter(args.shift());
+    return;
+  }
+  throw new DiagError("Unknown diag option: " + flag, 3);
+}
+
+function takeLimit(raw: string | undefined): number {
+  const limit = Number(raw);
+  if (!raw || !/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(limit) || limit > 1_000)
+    throw new DiagError("--limit must be an integer from 1 to 1000.", 3);
+  return limit;
+}
+
+function takeAfter(after: string | undefined): string {
+  if (!after || after.length > 262_144 || !/^[a-zA-Z0-9_-]+$/.test(after))
+    throw new DiagError("--after needs a valid cursor.", 3);
+  return after;
 }
 
 function takeOtlpEndpoint(args: string[]): string {
@@ -99,7 +165,8 @@ function validateTarget(action: "trace" | "check", options: Options): void {
 }
 
 function validateCheckOptions(options: Options): void {
-  if (options.otlp || !options.logs) throw new DiagError("Those options apply only to trace.", 3);
+  if (options.otlp || !options.logs || options.limit || options.after)
+    throw new DiagError("Those options apply only to trace.", 3);
 }
 
 function parseArgs(args: string[]): {
@@ -118,13 +185,15 @@ function parseArgs(args: string[]): {
     json: false,
     logs: true,
     otlp: undefined,
+    limit: undefined,
+    after: undefined,
   };
   while (args.length) consumeFlag(args.shift() ?? "", args, options);
   validateTarget(action, options);
   return { action, code, options };
 }
 
-async function readConfig(root: string): Promise<Config> {
+async function readConfig(root: string): Promise<DiagConfig> {
   let raw: string;
   try {
     raw = await readFile(path.join(root, "q9.config.json"), "utf8");
@@ -137,12 +206,59 @@ async function readConfig(root: string): Promise<Config> {
   } catch {
     throw new DiagError("q9.config.json is not valid JSON.", 3);
   }
-  const rootSchema = z.looseObject({ diag: configSchema.optional() });
+  const rootSchema = z.looseObject({
+    diag: z
+      .union([
+        configSchema,
+        z.strictObject({
+          sources: z.array(configSchema).min(1).max(12),
+          otlp: otlpSchema.optional(),
+        }),
+      ])
+      .optional(),
+  });
   const result = rootSchema.safeParse(parsed);
   if (!result.success || !result.data.diag)
-    throw new DiagError("Configure diag.adapter in q9.config.json.", 3);
+    throw new DiagError("Configure diag.adapter or diag.sources in q9.config.json.", 3);
   const config = result.data.diag;
-  return config;
+  return "sources" in config
+    ? { sources: config.sources, otlp: config.otlp }
+    : { sources: [config], otlp: config.otlp };
+}
+
+async function readFlows(root: string): Promise<Map<string, FlowDefinition>> {
+  let raw: string;
+  try {
+    raw = await readFile(path.join(root, "diagnostics", "flows.json"), "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return new Map();
+    throw new DiagError("Cannot read diagnostics/flows.json.", 3);
+  }
+  return parseFlows(raw);
+}
+
+function parseFlows(raw: string): Map<string, FlowDefinition> {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new DiagError("diagnostics/flows.json is not valid JSON.", 3);
+  }
+  if (!Array.isArray(data))
+    throw new DiagError("diagnostics/flows.json must be an array of flows.", 3);
+  const flows = new Map<string, FlowDefinition>();
+  for (const [index, entry] of data.entries()) {
+    const parsed = flowDefinitionSchema.safeParse(entry);
+    if (!parsed.success)
+      throw new DiagError(
+        `diagnostics/flows.json flow ${index + 1}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`,
+        3,
+      );
+    if (flows.has(parsed.data.id))
+      throw new DiagError(`diagnostics/flows.json: duplicate flow ${parsed.data.id}.`, 3);
+    flows.set(parsed.data.id, parsed.data);
+  }
+  return flows;
 }
 
 async function run(binary: string, args: string[], cwd: string): Promise<string> {
@@ -377,14 +493,63 @@ function serverLogGaps(
     : [];
 }
 
-function briefTruncated(
-  eventCount: number,
-  errorCount: number,
-  spanCount: number,
-  linksTruncated: boolean,
-  logsTruncated: boolean,
-): boolean {
-  return eventCount > 500 || errorCount > 100 || spanCount > 200 || linksTruncated || logsTruncated;
+const convexCursorSchema = z.strictObject({
+  events: z.number().int().min(0).max(2_000),
+  serverSpans: z.number().int().min(0).max(2_000),
+  errors: z.number().int().min(0).max(2_000),
+});
+
+function convexPosition(after: string | undefined): z.infer<typeof convexCursorSchema> {
+  if (!after) return { events: 0, serverSpans: 0, errors: 0 };
+  try {
+    return convexCursorSchema.parse(JSON.parse(Buffer.from(after, "base64url").toString("utf8")));
+  } catch {
+    throw new DiagError("Invalid Convex cursor.", 3);
+  }
+}
+
+function pageConvexEvidence(
+  events: DiagnosticEvent[],
+  logs: LogRead["logs"],
+  limit: number | undefined,
+  after: string | undefined,
+): {
+  events: DiagnosticEvent[];
+  serverSpans: DiagnosticTraceBrief["serverSpans"];
+  errors: DiagnosticEvent[];
+  allServerSpans: DiagnosticTraceBrief["serverSpans"];
+  nextCursor: string | undefined;
+  found: boolean;
+} {
+  const position = convexPosition(after);
+  const sorted = events.toSorted((left, right) => left.occurredAt - right.occurredAt);
+  const allServerSpans = toServerSpans(sorted, logs).toSorted(
+    (left, right) => left.occurredAt - right.occurredAt,
+  );
+  const allErrors = sorted.filter((event) => event.kind === "error");
+  const pageEvents = sorted.slice(position.events, position.events + (limit ?? 500));
+  const serverSpans = allServerSpans.slice(
+    position.serverSpans,
+    position.serverSpans + (limit ?? 200),
+  );
+  const errors = allErrors.slice(position.errors, position.errors + (limit ?? 100));
+  const next = {
+    events: position.events + pageEvents.length,
+    serverSpans: position.serverSpans + serverSpans.length,
+    errors: position.errors + errors.length,
+  };
+  const more =
+    next.events < sorted.length ||
+    next.serverSpans < allServerSpans.length ||
+    next.errors < allErrors.length;
+  return {
+    events: pageEvents,
+    serverSpans,
+    errors,
+    allServerSpans,
+    nextCursor: more ? Buffer.from(JSON.stringify(next)).toString("base64url") : undefined,
+    found: sorted.length > 0,
+  };
 }
 
 function buildBrief(
@@ -394,39 +559,28 @@ function buildBrief(
   expired: boolean,
   logRead: LogRead,
   logsRequested: boolean,
+  limit: number | undefined,
+  after: string | undefined,
 ): DiagnosticTraceBrief {
-  const sorted = events.toSorted((left, right) => left.occurredAt - right.occurredAt);
-  const bounded = sorted.slice(0, 500);
-  const allServerSpans = toServerSpans(bounded, logRead.logs).toSorted(
-    (left, right) => left.occurredAt - right.occurredAt,
-  );
-  const serverSpans = allServerSpans.slice(0, 200);
-  const allErrors = bounded.filter((event) => event.kind === "error");
-  const errors = allErrors.slice(0, 100);
-  const links = traceLinks(bounded);
-  const found = bounded.length > 0;
-  const gaps = serverLogGaps(found, logsRequested, serverSpans, logRead.truncated);
-  const truncated = briefTruncated(
-    sorted.length,
-    allErrors.length,
-    allServerSpans.length,
-    links.truncated,
-    logRead.truncated,
-  );
+  const page = pageConvexEvidence(events, logRead.logs, limit, after);
+  const links = traceLinks(page.events);
+  const gaps = serverLogGaps(page.found, logsRequested, page.allServerSpans, logRead.truncated);
+  const truncated = Boolean(page.nextCursor) || links.truncated || logRead.truncated;
   return diagnosticTraceBriefSchema.parse({
     version: 1,
     code,
     target,
     retrievedAt: new Date().toISOString(),
-    completeness: briefCompleteness(found, expired, gaps.length > 0 || truncated),
-    summary: briefSummary(bounded.length, expired),
-    journeyTraceId: bounded.find((event) => event.journeyTraceId)?.journeyTraceId,
-    events: bounded,
-    serverSpans,
-    errors,
+    completeness: briefCompleteness(page.found, expired, gaps.length > 0 || truncated),
+    summary: briefSummary(page.events.length, expired),
+    journeyTraceId: page.events.find((event) => event.journeyTraceId)?.journeyTraceId,
+    events: page.events,
+    serverSpans: page.serverSpans,
+    errors: page.errors,
     links: links.links,
     visibilityGaps: gaps,
     truncated,
+    nextCursor: page.nextCursor,
   });
 }
 
@@ -437,6 +591,21 @@ function render(brief: DiagnosticTraceBrief): string {
     `Retrieved: ${brief.retrievedAt}`,
     `Completeness: ${brief.completeness}`,
     `Summary: ${brief.summary}`,
+    ...(brief.flows?.length
+      ? [
+          "Flows:",
+          ...brief.flows.flatMap((flow) => [
+            `  ${flow.flow} v${flow.version} run=${flow.runId} ${flow.verdict}`,
+            ...flow.steps.map(
+              (step) =>
+                `    ${step.id} ${step.status}${step.expectedDeadline === undefined ? "" : ` deadline=${new Date(step.expectedDeadline).toISOString()}`}`,
+            ),
+            ...flow.unexpected.map(
+              (event) => `    unexpected ${event.attributes?.flow_step ?? event.eventId}`,
+            ),
+          ]),
+        ]
+      : []),
     "Events:",
     ...brief.events.flatMap((event) => [
       `  ${new Date(event.occurredAt).toISOString()} ${event.name} ${event.status}${event.requestId ? ` request=${event.requestId}` : ""}`,
@@ -446,14 +615,22 @@ function render(brief: DiagnosticTraceBrief): string {
       ),
     ]),
     "Server executions:",
-    ...brief.serverSpans.map(
-      (span) =>
-        `  ${new Date(span.occurredAt).toISOString()} ${span.name} ${span.status} (${span.correlation})`,
+    ...brief.serverSpans.flatMap((span) => [
+      `  ${new Date(span.occurredAt).toISOString()} ${span.name} ${span.status} (${span.correlation})`,
+      ...(span.logLines ?? []).map(
+        (line) => `    ${new Date(line.occurredAt).toISOString()} ${line.level} ${line.message}`,
+      ),
+    ]),
+    "Server log lines:",
+    ...(brief.serverLogs ?? []).map(
+      (line) =>
+        `  ${new Date(line.occurredAt).toISOString()} ${line.spanId} ${line.level} ${line.message}`,
     ),
     "Visibility gaps:",
-    ...brief.visibilityGaps.map((gap) => `  ${gap.reason}`),
+    ...brief.visibilityGaps.map((gap) => `  ${gap.source ? `${gap.source}: ` : ""}${gap.reason}`),
   ];
   if (brief.truncated) lines.push("Truncated: true");
+  if (brief.nextCursor) lines.push(`Next cursor: ${brief.nextCursor}`);
   return lines.join("\n") + "\n";
 }
 
@@ -471,7 +648,7 @@ function parseOtlpUrl(endpoint: string): URL {
   return url;
 }
 
-function assertOtlpEndpoint(endpoint: string, config: Config): URL {
+function assertOtlpEndpoint(endpoint: string, config: DiagConfig): URL {
   const url = parseOtlpUrl(endpoint);
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (!loopback && !config.otlp?.allowedEndpoints?.includes(url.href))
@@ -519,14 +696,9 @@ async function readCommandBrief(
   options: Options,
 ): Promise<DiagnosticTraceBrief> {
   const command = config.command;
-  const targetArgs = options.prod
-    ? ["--prod"]
-    : options.deployment
-      ? ["--deployment", options.deployment]
-      : [];
   const stdout = await run(
     command[0] ?? "",
-    [...command.slice(1), "trace", code, ...targetArgs],
+    [...command.slice(1), ...commandArgs(code, options)],
     root,
   );
   let brief: DiagnosticTraceBrief;
@@ -540,10 +712,53 @@ async function readCommandBrief(
   return brief;
 }
 
+async function lookupRunCommand(
+  config: Extract<Config, { adapter: "command" }>,
+  root: string,
+  runId: string,
+  options: Options,
+): Promise<DiagnosticEvent[]> {
+  const targetArgs = options.prod
+    ? ["--prod"]
+    : options.deployment
+      ? ["--deployment", options.deployment]
+      : [];
+  const stdout = await run(
+    config.command[0] ?? "",
+    [...config.command.slice(1), "run", runId, ...targetArgs],
+    root,
+  );
+  return parseRunLookup(stdout, "Command");
+}
+
+function commandArgs(code: string, options: Options): string[] {
+  const targetArgs = options.prod
+    ? ["--prod"]
+    : options.deployment
+      ? ["--deployment", options.deployment]
+      : [];
+  return [
+    "trace",
+    code,
+    ...targetArgs,
+    ...(options.limit ? ["--limit", String(options.limit)] : []),
+    ...(options.after ? ["--after", options.after] : []),
+  ];
+}
+
 const lookupSchema = z.strictObject({
   events: z.array(diagnosticEventSchema).max(2_000),
   expired: z.boolean().optional(),
 });
+const runLookupSchema = z.strictObject({ events: z.array(diagnosticEventSchema).max(10_000) });
+
+function parseRunLookup(stdout: string, adapter: "Command" | "Convex"): DiagnosticEvent[] {
+  try {
+    return runLookupSchema.parse(JSON.parse(stdout)).events;
+  } catch {
+    throw new DiagError(`${adapter} run lookup returned invalid DiagnosticEvent/v1 data.`, 4);
+  }
+}
 
 function parseLookup(stdout: string, code: string): z.infer<typeof lookupSchema> {
   let lookup: z.infer<typeof lookupSchema>;
@@ -574,29 +789,200 @@ async function readConvexBrief(
 ): Promise<DiagnosticTraceBrief> {
   const cwd = path.resolve(root, config.convexDir);
   const binary = path.join(cwd, "node_modules", ".bin", "convex");
-  const stdout = await run(
-    binary,
-    [
-      "run",
-      config.lookup ?? "diagnostics/lookup:trace",
-      JSON.stringify({ traceId: code }),
-      ...deploymentArgs(options),
-    ],
-    cwd,
-  );
+  const stdout = await invokeConvexLookup(config, root, { traceId: code }, options);
   const lookup = parseLookup(stdout, code);
   const logRead =
     !check && options.logs && lookup.events.length
       ? await readLogs(binary, cwd, deploymentArgs(options))
       : { logs: [], truncated: false };
-  return buildBrief(code, target, lookup.events, lookup.expired ?? false, logRead, options.logs);
+  return buildBrief(
+    code,
+    target,
+    lookup.events,
+    lookup.expired ?? false,
+    logRead,
+    options.logs,
+    options.limit,
+    options.after,
+  );
 }
 
-function writeCheck(config: Config, target: string, json: boolean): void {
+async function lookupRunConvex(
+  config: Extract<Config, { adapter: "convex" }>,
+  root: string,
+  runId: string,
+  options: Options,
+): Promise<DiagnosticEvent[]> {
+  const stdout = await invokeConvexLookup(config, root, { flowRun: runId }, options);
+  return parseRunLookup(stdout, "Convex");
+}
+
+function invokeConvexLookup(
+  config: Extract<Config, { adapter: "convex" }>,
+  root: string,
+  argument: { traceId: string } | { flowRun: string },
+  options: Options,
+): Promise<string> {
+  const cwd = path.resolve(root, config.convexDir);
+  const binary = path.join(cwd, "node_modules", ".bin", "convex");
+  return run(
+    binary,
+    [
+      "run",
+      config.lookup ?? "diagnostics/lookup:trace",
+      JSON.stringify(argument),
+      ...deploymentArgs(options),
+    ],
+    cwd,
+  );
+}
+
+async function attachFlows(
+  brief: DiagnosticTraceBrief,
+  config: DiagConfig,
+  root: string,
+  options: Options,
+  definitions: Map<string, FlowDefinition>,
+): Promise<DiagnosticTraceBrief> {
+  const runs = findFlowRuns(brief.events).flatMap((flowRun) => {
+    const definition = definitions.get(flowRun.flow);
+    return definition ? [{ flowRun, definition }] : [];
+  });
+  if (!runs.length) return brief;
+  const checked = await checkRuns(brief.events, runs, config, root, options);
+  const incomplete = checked.some(
+    ({ lookupUnavailable, truncated }) => lookupUnavailable || truncated,
+  );
+  return diagnosticTraceBriefSchema.parse({
+    ...brief,
+    flows: checked.map(({ entry }) => entry),
+    completeness: incomplete && brief.completeness === "complete" ? "partial" : brief.completeness,
+    truncated: brief.truncated || checked.some(({ truncated }) => truncated),
+    visibilityGaps: checked.some(({ lookupUnavailable }) => lookupUnavailable)
+      ? withRunLookupGap(brief.visibilityGaps)
+      : brief.visibilityGaps,
+  });
+}
+
+async function checkRuns(
+  traceEvents: DiagnosticEvent[],
+  runs: { flowRun: { flow: string; runId: string }; definition: FlowDefinition }[],
+  config: DiagConfig,
+  root: string,
+  options: Options,
+): Promise<Awaited<ReturnType<typeof checkOneRun>>[]> {
+  const checked: Awaited<ReturnType<typeof checkOneRun>>[] = [];
+  let lookupAllowed = true;
+  for (const { flowRun, definition } of runs) {
+    const result = await checkOneRun(
+      traceEvents,
+      flowRun,
+      definition,
+      config,
+      root,
+      options,
+      lookupAllowed,
+    );
+    checked.push(result);
+    if (result.lookupUnavailable) lookupAllowed = false;
+  }
+  return checked;
+}
+
+// Axiom sources can't look up runs yet, so a config with only Axiom sources reports the gap.
+async function lookupRun(
+  sources: Config[],
+  root: string,
+  runId: string,
+  options: Options,
+): Promise<DiagnosticEvent[]> {
+  const lookups = sources.flatMap((source) =>
+    source.adapter === "command"
+      ? [lookupRunCommand(source, root, runId, options)]
+      : source.adapter === "convex"
+        ? [lookupRunConvex(source, root, runId, options)]
+        : [],
+  );
+  if (!lookups.length) throw new DiagError("No source can look up flow runs.", 4);
+  const events = new Map<string, DiagnosticEvent>();
+  for (const event of (await Promise.all(lookups)).flat())
+    events.set(`${event.traceId}\0${event.eventId}`, event);
+  return [...events.values()];
+}
+
+function findFlowRuns(events: DiagnosticEvent[]): { flow: string; runId: string }[] {
+  const runs = new Map<string, { flow: string; runId: string }>();
+  for (const event of events) {
+    const runId = event.attributes?.flow_run;
+    const flow = event.attributes?.flow;
+    if (typeof runId === "string" && typeof flow === "string")
+      runs.set(`${flow}\0${runId}`, { flow, runId });
+  }
+  return [...runs.values()];
+}
+
+function withRunLookupGap(
+  gaps: DiagnosticTraceBrief["visibilityGaps"],
+): DiagnosticTraceBrief["visibilityGaps"] {
+  return gaps.some((gap) => gap.reason === "flow_run_lookup_unavailable")
+    ? gaps
+    : [...gaps.slice(0, 31), { reason: "flow_run_lookup_unavailable" }];
+}
+
+async function checkOneRun(
+  traceEvents: DiagnosticEvent[],
+  flowRun: { flow: string; runId: string },
+  definition: FlowDefinition,
+  config: DiagConfig,
+  root: string,
+  options: Options,
+  lookupAllowed: boolean,
+): Promise<{
+  entry: NonNullable<DiagnosticTraceBrief["flows"]>[number];
+  lookupUnavailable: boolean;
+  truncated: boolean;
+}> {
+  let events = traceEvents.filter(
+    (event) =>
+      event.attributes?.flow_run === flowRun.runId && event.attributes.flow === flowRun.flow,
+  );
+  let lookupUnavailable = !lookupAllowed;
+  if (lookupAllowed) {
+    try {
+      const fetched = await lookupRun(config.sources, root, flowRun.runId, options);
+      if (!fetched.every((event) => event.attributes?.flow_run === flowRun.runId))
+        throw new DiagError("Run lookup returned unrelated events.", 4);
+      events = fetched;
+    } catch {
+      lookupUnavailable = true;
+    }
+  }
+  const result = checkFlowRun(definition, events, Date.now());
+  const truncated = result.unexpected.length > 100;
+  return {
+    entry: {
+      flow: flowRun.flow,
+      version: definition.version,
+      runId: flowRun.runId,
+      ...result,
+      unexpected: result.unexpected.slice(0, 100),
+    },
+    lookupUnavailable,
+    truncated,
+  };
+}
+
+function writeCheck(config: DiagConfig, target: string, json: boolean): void {
+  const adapters = config.sources.map((source) => source.adapter);
   process.stdout.write(
     json
-      ? JSON.stringify({ ok: true, adapter: config.adapter, target }) + "\n"
-      : `Diagnostics access OK (${config.adapter}, ${target})\n`,
+      ? JSON.stringify({
+          ok: true,
+          adapter: adapters.length === 1 ? adapters[0] : undefined,
+          adapters,
+          target,
+        }) + "\n"
+      : `Diagnostics access OK (${adapters.join(", ")}, ${target})\n`,
   );
 }
 
@@ -619,20 +1005,93 @@ function retrieveBrief(
   check: boolean,
 ): Promise<DiagnosticTraceBrief> {
   if (config.adapter === "command") return readCommandBrief(config, root, code, target, options);
-  return readConvexBrief(config, root, code, target, options, check);
+  if (config.adapter === "convex")
+    return readConvexBrief(config, root, code, target, options, check);
+  return readAxiomBrief(config, code, target, options.limit ?? 500, options.after, options.logs);
+}
+
+function sourceName(sources: Config[], index: number): string {
+  const adapter = sources[index]?.adapter ?? "unknown";
+  return sources.filter((source) => source.adapter === adapter).length > 1
+    ? `${adapter}.${index + 1}`
+    : adapter;
+}
+
+async function mergedBrief(
+  config: DiagConfig,
+  root: string,
+  code: string,
+  target: string,
+  options: Options,
+): Promise<DiagnosticTraceBrief> {
+  return mergeBriefs(
+    config.sources.map((source, index) => ({
+      name: sourceName(config.sources, index),
+      trace: (after) => retrieveBrief(source, root, code, target, { ...options, after }, false),
+    })),
+    code,
+    target,
+    options.limit,
+    options.after,
+  );
 }
 
 export async function runDiag(root: string, args: string[]): Promise<number> {
   const { action, code, options } = parseArgs(args);
   const config = await readConfig(root);
+  const definitions = await readFlows(root);
   const endpoint = options.otlp ? assertOtlpEndpoint(options.otlp, config) : undefined;
   const target = options.prod ? "production" : (options.deployment ?? "development");
-  const lookupCode = action === "check" ? "00000000000000000000000000000001" : code;
-  if (!lookupCode) throw new DiagError("Missing diagnostic code.", 3);
-  const brief = await retrieveBrief(config, root, lookupCode, target, options, action === "check");
   if (action === "check") {
+    await checkSources(config, root, target, options);
     writeCheck(config, target, options.json);
     return 0;
   }
-  return writeTrace(brief, options, endpoint);
+  if (!code) throw new DiagError("Missing diagnostic code.", 3);
+  return traceSources(config, root, code, target, options, endpoint, definitions);
+}
+
+async function checkSources(
+  config: DiagConfig,
+  root: string,
+  target: string,
+  options: Options,
+): Promise<void> {
+  const probe = "00000000000000000000000000000001";
+  try {
+    await Promise.all(
+      config.sources.map((source) =>
+        source.adapter === "axiom"
+          ? checkAxiom(source)
+          : retrieveBrief(source, root, probe, target, options, true),
+      ),
+    );
+  } catch (error) {
+    if (error instanceof AxiomError) throw new DiagError(error.message, error.exitCode);
+    throw error;
+  }
+}
+
+async function traceSources(
+  config: DiagConfig,
+  root: string,
+  code: string,
+  target: string,
+  options: Options,
+  endpoint: URL | undefined,
+  definitions: Map<string, FlowDefinition>,
+): Promise<number> {
+  let brief: DiagnosticTraceBrief;
+  try {
+    brief = await mergedBrief(config, root, code, target, options);
+  } catch (error) {
+    if (error instanceof AxiomError || error instanceof MergeError)
+      throw new DiagError(error.message, error.exitCode);
+    throw error;
+  }
+  return writeTrace(
+    await attachFlows(brief, config, root, options, definitions),
+    options,
+    endpoint,
+  );
 }

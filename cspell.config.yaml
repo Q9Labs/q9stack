@@ -71,6 +71,7 @@ words:
   - q9gate
   - q9labs
   - q9stack
+  - realpath
   - referer
   - resends
   - rootsha

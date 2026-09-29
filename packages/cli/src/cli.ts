@@ -99,7 +99,7 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<nu
   if (argv[2] === "diag") {
     if (argv[3] === "--help" || argv[3] === "-h" || argv.length === 3) {
       process.stdout.write(
-        "q9 diag trace <code> [--prod | --deployment <name>] [--json] [--no-logs] [--otlp [endpoint]]\nq9 diag check [--prod | --deployment <name>] [--json]\n\nConfigure diag in q9.config.json. Default target is development. OTLP defaults to http://localhost:4318; non-loopback endpoints require diag.otlp.allowedEndpoints.\n",
+        "q9 diag trace <code> [--prod | --deployment <name>] [--json] [--no-logs] [--limit <n>] [--after <cursor>] [--otlp [endpoint]]\nq9 diag check [--prod | --deployment <name>] [--json]\n\nConfigure diag in q9.config.json. Default target is development. OTLP defaults to http://localhost:4318; non-loopback endpoints require diag.otlp.allowedEndpoints.\n",
       );
       return 0;
     }

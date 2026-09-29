@@ -19,6 +19,9 @@ and configure `APP_URL` and `API_URL` to their deployed HTTPS origins. Productio
 cookies are secure and cross-origin; the API does not enable development account
 discovery in production. Request logs omit query strings and replace password-reset
 path tokens with `:token`; tracing is disabled for token-bearing targets.
+`@q9labsai/diagnostics-server` adds a diagnostic code response header and safe
+failure body, with optional OTLP/HTTP export when `OTEL_EXPORTER_OTLP_ENDPOINT`
+is set. Unexpected failures are stored in `diagnostic_events` for `pnpm diag`.
 
 Password-reset requests return an in-app reset link in development. In
 production, set `PASSWORD_RESET_WEBHOOK_URL` to an HTTPS endpoint and

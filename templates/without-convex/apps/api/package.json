@@ -42,6 +42,8 @@
     "@__APP_SLUG__/env": "workspace:*",
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
+    "@q9labsai/diagnostics": "catalog:",
+    "@q9labsai/diagnostics-server": "catalog:",
     "better-auth": "catalog:",
     "effect": "catalog:",
     "pg": "catalog:"

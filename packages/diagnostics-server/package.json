@@ -1,0 +1,67 @@
+{
+  "name": "@q9labsai/diagnostics-server",
+  "version": "0.4.0",
+  "description": "Node/Effect capture and Postgres lookup for Q9 diagnostics",
+  "homepage": "https://github.com/Q9Labs/q9stack/tree/main/packages/diagnostics-server#readme",
+  "bugs": "https://github.com/Q9Labs/q9stack/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Q9Labs/q9stack",
+    "directory": "packages/diagnostics-server"
+  },
+  "bin": {
+    "q9-diag-pg": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "migrations",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/opentelemetry": "catalog:",
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/exporter-logs-otlp-http": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-http": "catalog:",
+    "@opentelemetry/resources": "catalog:",
+    "@opentelemetry/sdk-logs": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@q9labsai/diagnostics": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/sql": "catalog:",
+    "@effect/sql-pg": "catalog:",
+    "@q9labsai/config-tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@effect/platform": "^0.97.2",
+    "@effect/sql": "^0.52.1",
+    "@effect/sql-pg": "^0.53.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
