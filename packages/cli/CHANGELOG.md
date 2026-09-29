@@ -1,5 +1,11 @@
 # @q9labsai/cli
 
+## 0.4.3
+
+### Patch Changes
+
+- 8bedb17: `q9 diag` reads an Axiom dataset that has never received the filtered field (for example a brand-new logs dataset) as empty instead of failing the trace lookup with HTTP 400.
+
 ## 0.4.2
 
 ### Patch Changes

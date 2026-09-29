@@ -99,6 +99,9 @@ function span(index: number, time: number): FakeRow {
   };
 }
 
+const syntaxErrorFetch: typeof fetch = async () =>
+  Response.json({ code: 400, detail: { message: "syntax error" } }, { status: 400 });
+
 describe("Axiom diagnostics source", () => {
   it("maps a span event and a correlated log to one redacted flow event", async () => {
     process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
@@ -581,6 +584,29 @@ describe("Axiom diagnostics source", () => {
       exitCode: 3,
       message: "Missing Axiom query token in Q9_TEST_AXIOM_TOKEN.",
     });
+  });
+
+  it("reads a dataset that has never received the filtered field as empty", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const traces = fakeFetch([span(0, time)]);
+    const fetcher: typeof fetch = async (url, init) => {
+      if (typeof init?.body === "string" && init.body.includes("['logs']"))
+        return Response.json(
+          { code: 400, message: "invalid field", detail: { message: 'invalid field: "trace_id"' } },
+          { status: 400 },
+        );
+      return traces.fetcher(url, init);
+    };
+    const brief = await readAxiomBrief(config, code, "production", 10, undefined, true, fetcher);
+    expect(brief.serverSpans).toHaveLength(1);
+  });
+
+  it("still fails other HTTP 400 responses", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    await expect(
+      readAxiomBrief(config, code, "production", 10, undefined, true, syntaxErrorFetch),
+    ).rejects.toMatchObject({ exitCode: 4, message: "Axiom query failed (HTTP 400)." });
   });
 
   it.each([401, 403, 429, 500])("handles HTTP %i without exposing the token", async (status) => {

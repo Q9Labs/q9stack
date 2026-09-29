@@ -139,6 +139,7 @@ async function query(
     throw new AxiomError("Axiom query access denied. Check the query token and dataset scope.", 4);
   if (response.status === 429 || response.status >= 500)
     throw new AxiomError("Axiom query is temporarily unavailable. Retry shortly.", 4);
+  if (response.status === 400 && (await unknownField(response))) return [];
   if (!response.ok) throw new AxiomError(`Axiom query failed (HTTP ${response.status}).`, 4);
   let body: unknown;
   try {
@@ -147,6 +148,16 @@ async function query(
     throw new AxiomError("Axiom returned invalid JSON.", 4);
   }
   return rowsFromResponse(body);
+}
+
+const axiomCompileErrorSchema = z.object({ detail: z.object({ message: z.string() }) });
+
+// A dataset rejects filters on a field it has never received, so a fresh logs
+// dataset would fail every trace lookup. No row can match, so read it as empty.
+async function unknownField(response: Response): Promise<boolean> {
+  const body: unknown = await response.json().catch(() => null);
+  const parsed = axiomCompileErrorSchema.safeParse(body);
+  return parsed.success && parsed.data.detail.message.startsWith("invalid field");
 }
 
 function windowMillis(window: string | undefined): number {
