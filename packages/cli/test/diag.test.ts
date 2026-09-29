@@ -20,6 +20,7 @@ const journeyCode = "00000000000000000000000000000008";
 const unrelatedCode = "00000000000000000000000000000009";
 const journey = "0000000000000000000000000000000a";
 const longCode = "0000000000000000000000000000000b";
+const truncatedCode = "0000000000000000000000000000000c";
 let root: string;
 
 function cli(...args: string[]) {
@@ -65,7 +66,7 @@ if (process.argv[2] !== 'run') process.exit(1);
 fs.writeFileSync('.last-code', code);
 const events = code === '${missing}' || code === '${expired}' || code === '00000000000000000000000000000001' ? [] : code === '${longCode}' ? Array.from({length:600}, (_,i) => ({version:1,traceId:code,spanId:(i+1).toString(16).padStart(16,'0'),eventId:'step_'+i,occurredAt:1780000000000+i,source:'browser',kind:'event',name:'app.step',status:'ok',level:'info'})) : code === '${hundredErrorsCode}' ? Array.from({length:100}, (_,i) => ({version:1,traceId:code,spanId:(i+1).toString(16).padStart(16,'0'),eventId:'error_'+i,occurredAt:1780000000000+i,source:'browser',kind:'error',name:'app.error',status:'error',level:'error'})) : [{version:1,traceId:code,spanId:'1234567890abcdef',eventId:'one',occurredAt:1780000000000,source:'browser',kind:'request',name:'convex.query',status:'error',level:'error',requestId:code === '${partialCode}' || code === '${heuristicCode}' ? 'request_other123' : 'request_12345678',attributes:{function:code === '${partialCode}' ? 'other.function' : 'convex.query',replay_session_id:'opaqueReplaySession12'}}];
 const linked = code === '${journeyCode}' ? [{version:1,traceId:'${journey}',spanId:'000000000000000a',eventId:'nav',occurredAt:1779999999000,source:'browser',kind:'navigation',name:'app.navigate',status:'ok',level:'info'},{version:1,traceId:code,spanId:'000000000000000b',eventId:'fail',occurredAt:1780000000000,source:'browser',kind:'error',name:'app.error',status:'error',level:'error',journeyTraceId:'${journey}'}] : code === '${unrelatedCode}' ? [{version:1,traceId:'${journey}',spanId:'000000000000000a',eventId:'nav',occurredAt:1779999999000,source:'browser',kind:'navigation',name:'app.navigate',status:'ok',level:'info'}] : undefined;
-console.log(JSON.stringify({events:linked ?? events,expired:code === '${expired}'}));
+console.log(JSON.stringify({events:linked ?? events,expired:code === '${expired}',...(code === '${truncatedCode}' ? {truncated:true} : {})}));
 }
 `,
   );
@@ -161,6 +162,20 @@ describe("q9 diag", () => {
     expect(second.events).toHaveLength(100);
     expect(second.events[0]?.eventId).toBe("step_500");
     expect(second.nextCursor).toBeUndefined();
+  });
+
+  it("marks a brief partial when the Convex lookup capped its events", async () => {
+    await fakeConvex();
+    const capped = brief(truncatedCode, "--no-logs");
+    expect(capped.truncated).toBe(true);
+    expect(capped.completeness).toBe("partial");
+    expect(capped.visibilityGaps).toContainEqual(
+      expect.objectContaining({
+        reason: "not_available",
+        detail: "Lookup returned a capped set of events",
+      }),
+    );
+    expect(brief(code, "--no-logs").truncated).toBe(false);
   });
 
   it("reads and validates a command brief", async () => {
@@ -288,7 +303,7 @@ async function configureFlow() {
   );
 }
 
-async function fakeFlowCommand(lookup = true, extraCount = 0) {
+async function fakeFlowCommand(lookup = true, extraCount = 0, runTruncated = false) {
   const script = path.join(root, "flow.mjs");
   await writeFile(
     script,
@@ -297,7 +312,7 @@ const code = process.argv[3];
 const event = (step, at, traceId) => ({ version:1, traceId, spanId:'1234567890abcdef', eventId:step, occurredAt:at, source:'server', kind:'event', name:'resume.import', status:'ok', level:'info', attributes:{flow:'resume.import',flow_run:'run_1',flow_step:step} });
 if (process.argv[2] === 'run') {
   if (!${lookup}) process.exit(1);
-  console.log(JSON.stringify({events:[event('uploaded',1780000000000,'${code}'),event('parsed',1780000040000,'${journey}'),...Array.from({length:${extraCount}},(_,index)=>event('extra_'+index,1780000040001+index,'${code}'))]}));
+  console.log(JSON.stringify({events:[event('uploaded',1780000000000,'${code}'),event('parsed',1780000040000,'${journey}'),...Array.from({length:${extraCount}},(_,index)=>event('extra_'+index,1780000040001+index,'${code}'))],...(${runTruncated} ? {truncated:true} : {})}));
 } else {
   const events = [event('uploaded',1780000000000,code)];
   console.log(JSON.stringify({version:1,code,target:'development',retrievedAt:new Date().toISOString(),completeness:'complete',summary:'One event',events,serverSpans:[],errors:[],links:[],visibilityGaps:[],truncated:false}));
@@ -351,6 +366,14 @@ describe("q9 diag flows", () => {
     expect(found.flows?.[0]?.steps.map((step) => step.status)).toEqual(["ok", "late", "missing"]);
     expect(found.flows?.[0]?.unexpected).toEqual([]);
     expect(found.visibilityGaps).not.toContainEqual({ reason: "flow_run_lookup_unavailable" });
+  });
+  it("marks the brief partial when a run lookup was capped", async () => {
+    await configureFlow();
+    await fakeFlowCommand(true, 0, true);
+    const found = brief(code);
+    expect(found.flows?.[0]?.steps.map((step) => step.status)).toEqual(["ok", "late", "missing"]);
+    expect(found.truncated).toBe(true);
+    expect(found.completeness).toBe("partial");
   });
   it("bounds unexpected run events and marks the brief truncated", async () => {
     await configureFlow();

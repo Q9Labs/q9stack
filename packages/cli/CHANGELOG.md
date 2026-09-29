@@ -1,5 +1,11 @@
 # @q9labsai/cli
 
+## 0.4.2
+
+### Patch Changes
+
+- 154b38d: Convex and command lookups can return `truncated: true`, which marks the brief partial and truncated with a gap saying the lookup was capped.
+
 ## 0.4.1
 
 ### Patch Changes

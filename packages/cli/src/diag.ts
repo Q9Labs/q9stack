@@ -557,6 +557,7 @@ function buildBrief(
   target: string,
   events: DiagnosticEvent[],
   expired: boolean,
+  lookupTruncated: boolean,
   logRead: LogRead,
   logsRequested: boolean,
   limit: number | undefined,
@@ -564,8 +565,14 @@ function buildBrief(
 ): DiagnosticTraceBrief {
   const page = pageConvexEvidence(events, logRead.logs, limit, after);
   const links = traceLinks(page.events);
-  const gaps = serverLogGaps(page.found, logsRequested, page.allServerSpans, logRead.truncated);
-  const truncated = Boolean(page.nextCursor) || links.truncated || logRead.truncated;
+  const gaps = [
+    ...serverLogGaps(page.found, logsRequested, page.allServerSpans, logRead.truncated),
+    ...(lookupTruncated
+      ? [{ reason: "not_available" as const, detail: "Lookup returned a capped set of events" }]
+      : []),
+  ];
+  const truncated =
+    Boolean(page.nextCursor) || links.truncated || logRead.truncated || lookupTruncated;
   return diagnosticTraceBriefSchema.parse({
     version: 1,
     code,
@@ -717,7 +724,7 @@ async function lookupRunCommand(
   root: string,
   runId: string,
   options: Options,
-): Promise<DiagnosticEvent[]> {
+): Promise<RunLookup> {
   const targetArgs = options.prod
     ? ["--prod"]
     : options.deployment
@@ -749,12 +756,18 @@ function commandArgs(code: string, options: Options): string[] {
 const lookupSchema = z.strictObject({
   events: z.array(diagnosticEventSchema).max(2_000),
   expired: z.boolean().optional(),
+  truncated: z.boolean().optional(),
 });
-const runLookupSchema = z.strictObject({ events: z.array(diagnosticEventSchema).max(10_000) });
+const runLookupSchema = z.strictObject({
+  events: z.array(diagnosticEventSchema).max(10_000),
+  truncated: z.boolean().optional(),
+});
+type RunLookup = { events: DiagnosticEvent[]; truncated: boolean };
 
-function parseRunLookup(stdout: string, adapter: "Command" | "Convex"): DiagnosticEvent[] {
+function parseRunLookup(stdout: string, adapter: "Command" | "Convex"): RunLookup {
   try {
-    return runLookupSchema.parse(JSON.parse(stdout)).events;
+    const lookup = runLookupSchema.parse(JSON.parse(stdout));
+    return { events: lookup.events, truncated: lookup.truncated ?? false };
   } catch {
     throw new DiagError(`${adapter} run lookup returned invalid DiagnosticEvent/v1 data.`, 4);
   }
@@ -800,6 +813,7 @@ async function readConvexBrief(
     target,
     lookup.events,
     lookup.expired ?? false,
+    lookup.truncated ?? false,
     logRead,
     options.logs,
     options.limit,
@@ -812,7 +826,7 @@ async function lookupRunConvex(
   root: string,
   runId: string,
   options: Options,
-): Promise<DiagnosticEvent[]> {
+): Promise<RunLookup> {
   const stdout = await invokeConvexLookup(config, root, { flowRun: runId }, options);
   return parseRunLookup(stdout, "Convex");
 }
@@ -894,19 +908,20 @@ async function lookupRun(
   root: string,
   runId: string,
   options: Options,
-): Promise<DiagnosticEvent[]> {
+): Promise<RunLookup> {
   const lookups = sources.flatMap((source) =>
     source.adapter === "command"
       ? [lookupRunCommand(source, root, runId, options)]
       : source.adapter === "convex"
         ? [lookupRunConvex(source, root, runId, options)]
-        : [lookupAxiomRun(source, runId)],
+        : [lookupAxiomRun(source, runId).then((events) => ({ events, truncated: false }))],
   );
   if (!lookups.length) throw new DiagError("No source can look up flow runs.", 4);
+  const results = await Promise.all(lookups);
   const events = new Map<string, DiagnosticEvent>();
-  for (const event of (await Promise.all(lookups)).flat())
+  for (const event of results.flatMap((result) => result.events))
     events.set(`${event.traceId}\0${event.eventId}`, event);
-  return [...events.values()];
+  return { events: [...events.values()], truncated: results.some((result) => result.truncated) };
 }
 
 function findFlowRuns(events: DiagnosticEvent[]): { flow: string; runId: string }[] {
@@ -946,18 +961,20 @@ async function checkOneRun(
       event.attributes?.flow_run === flowRun.runId && event.attributes.flow === flowRun.flow,
   );
   let lookupUnavailable = !lookupAllowed;
+  let lookupTruncated = false;
   if (lookupAllowed) {
     try {
       const fetched = await lookupRun(config.sources, root, flowRun.runId, options);
-      if (!fetched.every((event) => event.attributes?.flow_run === flowRun.runId))
+      if (!fetched.events.every((event) => event.attributes?.flow_run === flowRun.runId))
         throw new DiagError("Run lookup returned unrelated events.", 4);
-      events = fetched;
+      events = fetched.events;
+      lookupTruncated = fetched.truncated;
     } catch {
       lookupUnavailable = true;
     }
   }
   const result = checkFlowRun(definition, events, Date.now());
-  const truncated = result.unexpected.length > 100;
+  const truncated = lookupTruncated || result.unexpected.length > 100;
   return {
     entry: {
       flow: flowRun.flow,
