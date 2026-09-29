@@ -17,7 +17,7 @@ import {
 } from "@q9labsai/diagnostics";
 import { z } from "zod";
 
-import { AxiomError, checkAxiom, readAxiomBrief } from "./diag/axiom.js";
+import { AxiomError, checkAxiom, lookupAxiomRun, readAxiomBrief } from "./diag/axiom.js";
 import { MergeError, mergeBriefs } from "./diag/merge.js";
 
 const exec = promisify(execFile);
@@ -889,7 +889,6 @@ async function checkRuns(
   return checked;
 }
 
-// Axiom sources can't look up runs yet, so a config with only Axiom sources reports the gap.
 async function lookupRun(
   sources: Config[],
   root: string,
@@ -901,7 +900,7 @@ async function lookupRun(
       ? [lookupRunCommand(source, root, runId, options)]
       : source.adapter === "convex"
         ? [lookupRunConvex(source, root, runId, options)]
-        : [],
+        : [lookupAxiomRun(source, runId)],
   );
   if (!lookups.length) throw new DiagError("No source can look up flow runs.", 4);
   const events = new Map<string, DiagnosticEvent>();

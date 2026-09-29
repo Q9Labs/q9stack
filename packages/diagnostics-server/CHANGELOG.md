@@ -1,5 +1,11 @@
 # @q9labsai/diagnostics-server
 
+## 0.4.1
+
+### Patch Changes
+
+- 75d5180: Read `OTEL_EXPORTER_OTLP_TRACES_HEADERS` and `OTEL_EXPORTER_OTLP_LOGS_HEADERS` so traces and logs can go to separate datasets.
+
 ## 0.4.0
 
 ### Minor Changes

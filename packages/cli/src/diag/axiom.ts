@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   diagnosticEventSchema,
   diagnosticTraceBriefSchema,
@@ -34,12 +36,20 @@ const tableSchema = z.looseObject({
   columns: z.array(z.array(z.unknown())),
 });
 const responseSchema = z.looseObject({ tables: z.array(tableSchema) });
+const flowAttributesSchema = z.looseObject({
+  flow: z.string(),
+  flow_run: z.string(),
+  flow_step: z.string(),
+  outcome: z.unknown().optional(),
+});
+const spanEventSchema = z.looseObject({ attributes: z.unknown(), timestamp: z.unknown() });
 type Row = Map<string, unknown>;
 type Position = { time: string; skip: number };
 const sourceCursorSchema = z.object({
   start: z.iso.datetime({ offset: true }),
   end: z.iso.datetime({ offset: true }),
   position: z.object({ time: z.string(), skip: z.int().min(1) }).optional(),
+  eventOffset: z.int().min(1).optional(),
   seenSpans: z
     .string()
     .regex(/^[a-zA-Z0-9_-]+$/)
@@ -148,7 +158,7 @@ function windowMillis(window: string | undefined): number {
   return millis;
 }
 
-function initialCursor(config: AxiomConfig, after: string | undefined): SourceCursor {
+function initialCursor(config: AxiomConfig, after?: string): SourceCursor {
   if (after) {
     try {
       return sourceCursorSchema.parse(JSON.parse(Buffer.from(after, "base64url").toString("utf8")));
@@ -197,7 +207,7 @@ function consumeBatch(
 async function pageRows(
   config: AxiomConfig,
   dataset: string,
-  code: string,
+  filter: string,
   cursor: SourceCursor,
   limit: number,
   fetcher: typeof fetch,
@@ -210,7 +220,7 @@ async function pageRows(
     const batch = await query(
       config,
       dataset,
-      ` | where trace_id == "${code}" | sort by _time asc | limit 1000`,
+      ` | ${filter} | sort by _time asc | limit 1000`,
       start,
       cursor.end,
       fetcher,
@@ -251,6 +261,89 @@ function attributes(row: Row): DiagnosticEvent["attributes"] {
     for (const [key, value] of Object.entries(custom)) candidate.set(key, value);
   }
   return redactDiagnosticAttributes(Object.fromEntries(candidate)).attributes;
+}
+
+function flowEvent(row: Row, value: unknown, time: unknown): DiagnosticEvent | undefined {
+  const flowAttributes = flowAttributesSchema.safeParse(value);
+  if (!flowAttributes.success) return undefined;
+  // Axiom's nanosecond timestamps arrive as imprecise JS numbers at this magnitude.
+  const occurredAt =
+    typeof time === "number" ? Math.floor(time / 1_000_000 + 0.0005) : Date.parse(String(time));
+  const traceId = rowString(row, "trace_id");
+  const spanId = rowString(row, "span_id");
+  if (!traceId || !spanId || !Number.isFinite(occurredAt)) return undefined;
+  const { flow, flow_run, flow_step, outcome: rawOutcome } = flowAttributes.data;
+  const safe = redactDiagnosticAttributes({
+    flow,
+    flow_run,
+    flow_step,
+    ...(rawOutcome === undefined ? {} : { outcome: rawOutcome }),
+  }).attributes;
+  const { flow: safeFlow, flow_run: run, flow_step: step, outcome } = safe ?? {};
+  if (typeof safeFlow !== "string" || typeof run !== "string" || typeof step !== "string")
+    return undefined;
+  const eventId = `flow_${createHash("sha256")
+    .update(`${traceId}\0${spanId}\0${safeFlow}\0${run}\0${step}\0${occurredAt}`)
+    .digest("hex")
+    .slice(0, 32)}`;
+  const parsed = diagnosticEventSchema.safeParse({
+    version: 1,
+    traceId,
+    spanId,
+    eventId,
+    occurredAt,
+    source: "server",
+    kind: "event",
+    name: safeFlow,
+    status: "ok",
+    level: "info",
+    attributes: {
+      flow: safeFlow,
+      flow_run: run,
+      flow_step: step,
+      ...(outcome === undefined ? {} : { outcome }),
+    },
+  });
+  return parsed.success ? parsed.data : undefined;
+}
+
+function spanFlowEvents(traceRows: Row[]): DiagnosticEvent[] {
+  const events: DiagnosticEvent[] = [];
+  for (const row of traceRows) {
+    const value = rowValue(row, "events");
+    const spanEvents = Array.isArray(value) ? value : value ? [value] : [];
+    for (const spanEvent of spanEvents) {
+      const parsed = spanEventSchema.safeParse(spanEvent);
+      if (!parsed.success) continue;
+      const event = flowEvent(row, parsed.data.attributes, parsed.data.timestamp);
+      if (event) events.push(event);
+    }
+  }
+  return events;
+}
+
+function logFlowEvents(logRows: Row[]): DiagnosticEvent[] {
+  const events: DiagnosticEvent[] = [];
+  for (const row of logRows) {
+    const candidate = Object.fromEntries(
+      [...row]
+        .filter(([key]) => key.startsWith("attributes."))
+        .map(([key, value]) => [key.slice(11), value]),
+    );
+    const event = flowEvent(row, candidate, rowString(row, "_time"));
+    if (event) events.push(event);
+  }
+  return events;
+}
+
+function flowEvents(traceRows: Row[], logRows: Row[]): DiagnosticEvent[] {
+  const seen = new Set<string>();
+  return [...spanFlowEvents(traceRows), ...logFlowEvents(logRows)].filter((event) => {
+    const key = `${event.traceId}:${event.eventId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function errorEvent(row: Row, suffix: string, name: string): DiagnosticEvent | undefined {
@@ -429,14 +522,14 @@ async function readAxiomPages(
   fetcher: typeof fetch,
 ): Promise<AxiomPages> {
   const traces = config.traces
-    ? await pageRows(config, config.traces, code, cursor, limit, fetcher)
+    ? await pageRows(config, config.traces, `where trace_id == "${code}"`, cursor, limit, fetcher)
     : { rows: [], next: undefined };
   const logs =
     config.logs && logsRequested
       ? await pageRows(
           config,
           config.logs,
-          code,
+          `where trace_id == "${code}"`,
           config.traces ? { ...cursor, position: undefined } : cursor,
           config.traces ? 10_000 : limit,
           fetcher,
@@ -466,12 +559,21 @@ function nextAxiomCursor(
   pages: AxiomPages,
   cursor: SourceCursor,
   seen: Set<string>,
+  moreEvents: boolean,
+  nextEventOffset: number,
 ): string | undefined {
+  if (moreEvents)
+    return encodeCursor({
+      ...cursor,
+      eventOffset: nextEventOffset,
+      seenSpans: config.traces && seen.size ? encodeSeenSpans(seen) : undefined,
+    });
   const position = config.traces ? pages.traceNext : pages.logNext;
   if (!position) return undefined;
   return encodeCursor({
     ...cursor,
     position,
+    eventOffset: undefined,
     seenSpans: config.traces && seen.size ? encodeSeenSpans(seen) : undefined,
   });
 }
@@ -496,8 +598,15 @@ function axiomBrief(
   const seen = decodeSeenSpans(cursor.seenSpans);
   const logRead = logLines(pages.logRows);
   const mapped = spansAndErrors(pages.traceRows, logRead.lines, seen);
-  const serverLogs = config.traces ? [] : logRecords(pages.logRows);
-  const found = seen.size > 0 || serverLogs.length > 0;
+  const allEvents = flowEvents(
+    pages.traceRows,
+    config.traces && cursor.position ? [] : pages.logRows,
+  );
+  const eventOffset = cursor.eventOffset ?? 0;
+  const events = allEvents.slice(eventOffset, eventOffset + limit);
+  const moreEvents = allEvents.length > eventOffset + limit;
+  const serverLogs = config.traces || cursor.eventOffset ? [] : logRecords(pages.logRows);
+  const found = seen.size > 0 || serverLogs.length > 0 || events.length > 0;
   const gaps = axiomGaps(
     found,
     Boolean(config.traces),
@@ -505,7 +614,14 @@ function axiomBrief(
     Boolean(config.traces && logRead.truncated),
     mapped.errors.length > limit,
   );
-  const nextCursor = nextAxiomCursor(config, pages, cursor, seen);
+  const nextCursor = nextAxiomCursor(
+    config,
+    pages,
+    cursor,
+    seen,
+    moreEvents,
+    eventOffset + events.length,
+  );
   return diagnosticTraceBriefSchema.parse({
     version: 1,
     code,
@@ -513,9 +629,9 @@ function axiomBrief(
     retrievedAt: new Date().toISOString(),
     completeness: axiomCompleteness(found, gaps, nextCursor),
     summary: found
-      ? `${mapped.serverSpans.length} Axiom server spans and ${serverLogs.length} log lines`
+      ? `${events.length} Axiom events ${mapped.serverSpans.length} server spans and ${serverLogs.length} log lines`
       : "No Axiom trace evidence",
-    events: [],
+    events,
     serverSpans: mapped.serverSpans,
     serverLogs,
     errors: mapped.errors.slice(0, limit),
@@ -541,4 +657,36 @@ export async function readAxiomBrief(
   const cursor = initialCursor(config, after);
   const pages = await readAxiomPages(config, code, cursor, limit, logsRequested, fetcher);
   return axiomBrief(config, code, target, limit, cursor, pages);
+}
+
+export async function lookupAxiomRun(
+  config: AxiomConfig,
+  runId: string,
+  fetcher: typeof fetch = fetch,
+): Promise<DiagnosticEvent[]> {
+  const cursor = initialCursor(config);
+  const traces = config.traces
+    ? await pageRows(
+        config,
+        config.traces,
+        `mv-expand events | where events.attributes.flow_run == "${runId}"`,
+        cursor,
+        10_000,
+        fetcher,
+      )
+    : { rows: [], next: undefined };
+  const logs = config.logs
+    ? await pageRows(
+        config,
+        config.logs,
+        `where ['attributes.flow_run'] == "${runId}"`,
+        cursor,
+        10_000,
+        fetcher,
+      )
+    : { rows: [], next: undefined };
+  const events = flowEvents(traces.rows, logs.rows);
+  if (traces.next || logs.next || events.length > 10_000)
+    throw new AxiomError("Axiom flow run exceeds 10,000 events.", 4);
+  return events;
 }

@@ -1,5 +1,11 @@
 # @q9labsai/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- 6aa2f5c: Read flow steps from Axiom span events and logs and look up runs across traces.
+
 ## 0.4.0
 
 ### Minor Changes

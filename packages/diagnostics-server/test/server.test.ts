@@ -20,8 +20,34 @@ import {
   redactLogRecord,
   redactSpan,
 } from "../src/index.js";
+import { signalHeaders } from "../src/telemetry.js";
 
 describe("diagnostics server", () => {
+  it("lets signal-specific OTLP headers override shared ones", () => {
+    const keys = [
+      "OTEL_EXPORTER_OTLP_HEADERS",
+      "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
+      "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
+    ] as const;
+    const previous = keys.map((key) => process.env[key]);
+    process.env["OTEL_EXPORTER_OTLP_HEADERS"] = "Authorization=Bearer t,X-Axiom-Dataset=shared";
+    process.env["OTEL_EXPORTER_OTLP_TRACES_HEADERS"] = "X-Axiom-Dataset=traces";
+    delete process.env["OTEL_EXPORTER_OTLP_LOGS_HEADERS"];
+    try {
+      expect(signalHeaders("TRACES")).toEqual({
+        Authorization: "Bearer t",
+        "X-Axiom-Dataset": "traces",
+      });
+      expect(signalHeaders("LOGS")["X-Axiom-Dataset"]).toBe("shared");
+    } finally {
+      keys.forEach((key, index) => {
+        const value = previous[index];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      });
+    }
+  });
+
   it("runs without an OTLP endpoint", async () => {
     const previous = process.env["OTEL_EXPORTER_OTLP_ENDPOINT"];
     delete process.env["OTEL_EXPORTER_OTLP_ENDPOINT"];

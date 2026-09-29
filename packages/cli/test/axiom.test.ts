@@ -1,8 +1,19 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { diagnosticTraceBriefSchema } from "@q9labsai/diagnostics";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { AxiomError, checkAxiom, readAxiomBrief, type AxiomConfig } from "../src/diag/axiom.js";
+import { runDiag } from "../src/diag.js";
+import {
+  AxiomError,
+  checkAxiom,
+  lookupAxiomRun,
+  readAxiomBrief,
+  type AxiomConfig,
+} from "../src/diag/axiom.js";
 import { mergeBriefs } from "../src/diag/merge.js";
 
 const code = "1234567890abcdef1234567890abcdef";
@@ -14,8 +25,11 @@ const config: AxiomConfig = {
   tokenEnv: "Q9_TEST_AXIOM_TOKEN",
 };
 const originalToken = process.env["Q9_TEST_AXIOM_TOKEN"];
+const originalFetch = globalThis.fetch;
 
 afterEach(() => {
+  vi.restoreAllMocks();
+  globalThis.fetch = originalFetch;
   if (originalToken === undefined) delete process.env["Q9_TEST_AXIOM_TOKEN"];
   else process.env["Q9_TEST_AXIOM_TOKEN"] = originalToken;
 });
@@ -45,7 +59,27 @@ function fakeFetch(traces: FakeRow[], logs: FakeRow[] = []) {
     const headers = new Headers(init.headers);
     requests.push({ apl: parsed.apl, startTime: parsed.startTime, headers });
     const source = parsed.apl.includes("['traces']") ? traces : logs;
-    const filtered = source.filter((row) => row["_time"] >= parsed.startTime);
+    const traceMatch = /where trace_id == "([a-f0-9]+)"/.exec(parsed.apl)?.[1];
+    const runMatch = /flow_run(?:'\])? == "([^"]+)"/.exec(parsed.apl)?.[1];
+    const filtered = source
+      .filter(
+        (row) => row["_time"] >= parsed.startTime && (!traceMatch || row.trace_id === traceMatch),
+      )
+      .flatMap((row) => {
+        if (!parsed.apl.includes("mv-expand events")) return [row];
+        const events = z.array(z.unknown()).safeParse(row["events"]);
+        return events.success ? events.data.map((event) => ({ ...row, events: event })) : [];
+      })
+      .filter((row) => {
+        if (!runMatch) return true;
+        if (parsed.apl.includes("mv-expand events")) {
+          const event = z
+            .looseObject({ attributes: z.looseObject({ flow_run: z.string().optional() }) })
+            .safeParse(row["events"]);
+          return event.success && event.data.attributes.flow_run === runMatch;
+        }
+        return row["attributes.flow_run"] === runMatch;
+      });
     const limit = Number(/\| limit (\d+)/.exec(parsed.apl)?.[1] ?? 1000);
     return tabular(filtered.slice(0, limit));
   };
@@ -66,6 +100,278 @@ function span(index: number, time: number): FakeRow {
 }
 
 describe("Axiom diagnostics source", () => {
+  it("maps a span event and a correlated log to one redacted flow event", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const attrs = {
+      flow: "resume.import",
+      flow_run: "run_1",
+      flow_step: "uploaded",
+      outcome: "stored",
+      secret: "private-token",
+    };
+    const trace = {
+      ...span(0, time),
+      events: [{ name: "q9.flow.step", timestamp: time * 1_000_000, attributes: attrs }],
+    };
+    const log = {
+      ...span(0, time),
+      ...Object.fromEntries(
+        Object.entries(attrs).map(([key, value]) => [`attributes.${key}`, value]),
+      ),
+      body: "private-token",
+    };
+    const { fetcher } = fakeFetch([trace], [log]);
+    const brief = await readAxiomBrief(config, code, "production", 10, undefined, true, fetcher);
+    expect(brief.events).toHaveLength(1);
+    expect(brief.events[0]).toMatchObject({
+      source: "server",
+      kind: "event",
+      name: "resume.import",
+      occurredAt: time,
+      attributes: {
+        flow: "resume.import",
+        flow_run: "run_1",
+        flow_step: "uploaded",
+        outcome: "stored",
+      },
+    });
+    expect(JSON.stringify(brief.events)).not.toContain("private-token");
+    expect(
+      (
+        await readAxiomBrief(
+          { ...config, logs: undefined },
+          code,
+          "production",
+          10,
+          undefined,
+          true,
+          fetcher,
+        )
+      ).events,
+    ).toHaveLength(1);
+    expect(
+      (
+        await readAxiomBrief(
+          { ...config, traces: undefined },
+          code,
+          "production",
+          10,
+          undefined,
+          true,
+          fetcher,
+        )
+      ).events,
+    ).toEqual(brief.events);
+  });
+
+  it("keeps distinct flows and pages multiple events from one span", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const trace = {
+      ...span(0, time),
+      events: ["resume.import", "recording.callback"].map((flow) => ({
+        name: "q9.flow.step",
+        timestamp: time * 1_000_000,
+        attributes: { flow, flow_run: "run_1", flow_step: "uploaded" },
+      })),
+    };
+    const { fetcher } = fakeFetch([trace]);
+    const source = { ...config, logs: undefined };
+    const first = await readAxiomBrief(source, code, "production", 1, undefined, true, fetcher);
+    expect(first.events).toHaveLength(1);
+    expect(first.nextCursor).toBeDefined();
+    const second = await readAxiomBrief(
+      source,
+      code,
+      "production",
+      1,
+      first.nextCursor,
+      true,
+      fetcher,
+    );
+    expect(second.events).toHaveLength(1);
+    expect(second.serverSpans).toHaveLength(0);
+    expect(second.nextCursor).toBeUndefined();
+    expect(new Set([...first.events, ...second.events].map((event) => event.eventId)).size).toBe(2);
+    expect([first.events[0]?.name, second.events[0]?.name]).toEqual([
+      "resume.import",
+      "recording.callback",
+    ]);
+  });
+
+  it("does not re-emit flow logs on later trace pages", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const trace = {
+      ...span(0, time),
+      events: [
+        {
+          name: "q9.flow.step",
+          timestamp: time * 1_000_000,
+          attributes: { flow: "resume.import", flow_run: "run_1", flow_step: "uploaded" },
+        },
+      ],
+    };
+    const log = {
+      ...span(1, time + 1),
+      "attributes.flow": "resume.import",
+      "attributes.flow_run": "run_1",
+      "attributes.flow_step": "parsed",
+    };
+    const { fetcher } = fakeFetch([trace, span(1, time + 1)], [log]);
+    const first = await readAxiomBrief(config, code, "production", 1, undefined, true, fetcher);
+    const second = await readAxiomBrief(
+      config,
+      code,
+      "production",
+      1,
+      first.nextCursor,
+      true,
+      fetcher,
+    );
+    const third = await readAxiomBrief(
+      config,
+      code,
+      "production",
+      1,
+      second.nextCursor,
+      true,
+      fetcher,
+    );
+    expect([
+      first.events[0]?.attributes?.flow_step,
+      second.events[0]?.attributes?.flow_step,
+    ]).toEqual(["uploaded", "parsed"]);
+    expect(third.events).toHaveLength(0);
+    expect(third.serverSpans).toHaveLength(1);
+    expect(third.nextCursor).toBeUndefined();
+  });
+
+  it("looks up a run across trace IDs through expanded span events and log attributes", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const otherTrace = "0000000000000000000000000000000a";
+    const first = {
+      ...span(0, time),
+      events: [
+        {
+          name: "q9.flow.step",
+          timestamp: time * 1_000_000,
+          attributes: { flow: "resume.import", flow_run: "run_1", flow_step: "uploaded" },
+        },
+      ],
+    };
+    const second = {
+      ...span(1, time + 1),
+      trace_id: otherTrace,
+      events: [
+        {
+          name: "q9.flow.step",
+          timestamp: (time + 1) * 1_000_000,
+          attributes: { flow: "resume.import", flow_run: "run_1", flow_step: "parsed" },
+        },
+      ],
+    };
+    const log = {
+      ...second,
+      events: undefined,
+      "attributes.flow": "resume.import",
+      "attributes.flow_run": "run_1",
+      "attributes.flow_step": "parsed",
+    };
+    const { fetcher, requests } = fakeFetch([first, second], [log]);
+    const events = await lookupAxiomRun(config, "run_1", fetcher);
+    expect(events.map((event) => [event.traceId, event.attributes?.flow_step])).toEqual([
+      [code, "uploaded"],
+      [otherTrace, "parsed"],
+    ]);
+    expect(
+      requests.some((request) =>
+        request.apl.includes("mv-expand events | where events.attributes.flow_run"),
+      ),
+    ).toBe(true);
+    expect(requests.some((request) => request.apl.includes("where ['attributes.flow_run']"))).toBe(
+      true,
+    );
+  });
+
+  it("fails a bounded run lookup instead of treating incomplete evidence as complete", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const start = Date.now() - 20_000;
+    const traces = Array.from({ length: 10_001 }, (_, index) => ({
+      ...span(index, start + index),
+      events: [
+        {
+          name: "q9.flow.step",
+          timestamp: (start + index) * 1_000_000,
+          attributes: { flow: "resume.import", flow_run: "run_1", flow_step: "uploaded" },
+        },
+      ],
+    }));
+    const { fetcher } = fakeFetch(traces);
+    await expect(lookupAxiomRun({ ...config, logs: undefined }, "run_1", fetcher)).rejects.toThrow(
+      "exceeds 10,000 events",
+    );
+  });
+
+  it("merges command and Axiom run evidence in the rendered flow", async () => {
+    process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
+    const time = Date.now() - 1000;
+    const attrs = { flow: "resume.import", flow_run: "run_1", flow_step: "uploaded" };
+    const row = {
+      ...span(0, time),
+      events: [{ name: "q9.flow.step", timestamp: time * 1_000_000, attributes: attrs }],
+    };
+    const { fetcher } = fakeFetch([row]);
+    const uploaded = (
+      await readAxiomBrief(config, code, "development", 10, undefined, true, fetcher)
+    ).events[0];
+    expect(uploaded).toBeDefined();
+    const parsed = {
+      ...uploaded,
+      traceId: "0000000000000000000000000000000a",
+      eventId: "parsed",
+      occurredAt: time + 100,
+      attributes: { flow: "resume.import", flow_run: "run_1", flow_step: "parsed" },
+    };
+    const root = await mkdtemp(path.join(tmpdir(), "q9-axiom-flow-"));
+    try {
+      await mkdir(path.join(root, "diagnostics"));
+      await writeFile(
+        path.join(root, "diagnostics", "flows.json"),
+        JSON.stringify([
+          {
+            id: "resume.import",
+            version: 1,
+            steps: [{ id: "uploaded" }, { id: "parsed", after: ["uploaded"], within: "2m" }],
+          },
+        ]),
+      );
+      const script = path.join(root, "command.mjs");
+      await writeFile(
+        script,
+        `const events = ${JSON.stringify([uploaded, parsed])};\nif (process.argv[2] === "run") console.log(JSON.stringify({ events }));\nelse console.log(JSON.stringify({ version: 1, code: process.argv[3], target: "development", retrievedAt: new Date().toISOString(), completeness: "not_found", summary: "No evidence", events: [], serverSpans: [], errors: [], links: [], visibilityGaps: [], truncated: false }));\n`,
+      );
+      await writeFile(
+        path.join(root, "q9.config.json"),
+        JSON.stringify({
+          diag: { sources: [{ adapter: "command", command: [process.execPath, script] }, config] },
+        }),
+      );
+      globalThis.fetch = fetcher;
+      const output = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+      expect(await runDiag(root, ["trace", code])).toBe(0);
+      const rendered = output.mock.calls.map((call) => String(call[0])).join("");
+      expect(rendered).toContain("Flows:");
+      expect(rendered).toContain("resume.import");
+      expect(rendered).toContain("parsed");
+      expect(rendered).not.toContain("flow_run_lookup_unavailable");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("finds spans and errors, attaches safe log lines, and redacts attributes and body", async () => {
     process.env["Q9_TEST_AXIOM_TOKEN"] = "private-test-token";
     const time = Date.now() - 1000;

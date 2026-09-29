@@ -109,17 +109,24 @@ function otlpHeaders(value: string | undefined): { [key: string]: string } {
   );
 }
 
+// Signal-specific headers override shared ones, as the OTel spec defines, so traces and logs can reach different datasets.
+export function signalHeaders(signal: "TRACES" | "LOGS"): { [key: string]: string } {
+  return {
+    ...otlpHeaders(process.env["OTEL_EXPORTER_OTLP_HEADERS"]),
+    ...otlpHeaders(process.env[`OTEL_EXPORTER_OTLP_${signal}_HEADERS`]),
+  };
+}
+
 export function diagnosticsLayer(serviceName: string): Layer.Layer<never> {
   const endpoint = process.env["OTEL_EXPORTER_OTLP_ENDPOINT"];
   if (!endpoint) return Layer.empty;
   const base = endpoint.replace(/\/$/, "");
-  const headers = otlpHeaders(process.env["OTEL_EXPORTER_OTLP_HEADERS"]);
   const traces = redactedSpanExporter(
-    new OTLPTraceExporter({ url: `${base}/v1/traces`, headers }),
+    new OTLPTraceExporter({ url: `${base}/v1/traces`, headers: signalHeaders("TRACES") }),
     serviceName,
   );
   const logs = redactedLogExporter(
-    new OTLPLogExporter({ url: `${base}/v1/logs`, headers }),
+    new OTLPLogExporter({ url: `${base}/v1/logs`, headers: signalHeaders("LOGS") }),
     serviceName,
   );
   return NodeSdk.layer(() => ({
